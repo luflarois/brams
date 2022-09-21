@@ -11,12 +11,12 @@
 
 Module mem_brams_jules
    implicit none
-   integer:: mynumB,nxB,nyB,ntB,timestepB,ntimestepB,sm_levelsB,output_periodB,dump_periodB
+   integer:: mynumB, nxB,nyB,ntB,timestepB,ntimestepB,sm_levelsB,output_periodB,dump_periodB
    real, allocatable :: glatB(:,:), glonB(:,:), land_fracB(:,:), dzsoilB(:), &
                         precipB(:,:), swdownB(:,:), lwdownB(:,:), &
                         diff_radB(:,:), tempB(:,:), upsB(:,:), vpsB(:,:), &
                         pstarB(:,:), qB(:,:), fracB(:,:,:), sthuB(:,:,:),tsoilB(:,:,:), &
-                        tstarB(:,:)
+                        tstarB(:,:),viesALL(:,:,:,:),z1_uvB,z1_tqB
    CHARACTER(len=19) :: main_run_startB,main_run_endB
    CHARACTER(len=256) :: dir_run_idB,hfilinB
    CHARACTER(len=16) :: runtypeB

@@ -1183,8 +1183,10 @@ contains
 	!namelist digital filter
 	logical :: applyDigitalFilter
 	real	:: digitalFilterTimeWindow
+     character(len=256) :: pref_vies
+
      namelist /DIGITALFILTER/ &
-	       applyDigitalFilter, digitalFilterTimeWindow
+	       applyDigitalFilter, digitalFilterTimeWindow, pref_vies
 
 
      logical                      :: applyMeteogram
@@ -2834,6 +2836,7 @@ contains
     else
 	oneNamelistFile%applyDigitalFilter = applyDigitalFilter
       	oneNamelistFile%digitalFilterTimeWindow=digitalFilterTimeWindow
+     oneNamelistFile%pref_vies = pref_vies
 
 	oneNamelistFile%applyMeteogram = applyMeteogram
      	oneNamelistFile%meteogramFreq  = meteogramFreq
@@ -4596,6 +4599,8 @@ contains
     call parf_bcast(oneNamelistFile%applyDigitalFilter, &
          oneParallelEnvironment%master_num)
     call parf_bcast(oneNamelistFile%digitalFilterTimeWindow, &
+         oneParallelEnvironment%master_num)
+    call parf_bcast(oneNamelistFile%pref_vies, &
          oneParallelEnvironment%master_num)
 
  !meteogram

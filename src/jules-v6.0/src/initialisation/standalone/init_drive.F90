@@ -56,7 +56,8 @@ USE um_types, ONLY: real_jlslsm
 USE ancil_info, ONLY: ainfo_type
 USE prognostics, ONLY: progs_data_type
 
-USE mem_brams_jules, ONLY: timestepB,main_run_endB,main_run_startB,ntimestepB  !DSM
+USE mem_brams_jules, ONLY: timestepB,main_run_endB,main_run_startB,ntimestepB, &
+                           z1_uvB,z1_tqB  !DSM
 
 IMPLICIT NONE
 
@@ -242,7 +243,9 @@ IF ( error /= 0 )                                                             &
 data_period=timestepB         !DSM 
 data_end=main_run_endB        !DSM 
 data_start=main_run_startB    !DSM 
-nfiles=ntimestepB             !DSM 
+nfiles=ntimestepB             !DSM
+z1_uv_in=z1_uvB             !DSM
+z1_tq_in=z1_tqB             !DSM
 
 !-----------------------------------------------------------------------------
 ! Check that variable identifiers are not empty.

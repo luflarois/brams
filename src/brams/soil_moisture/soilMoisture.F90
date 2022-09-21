@@ -1,4 +1,4 @@
-MODULE soilMoisture
+module soilMoisture
    !! Soil Moisture Initialization for NWP Models
    !!
    !! @note
@@ -94,7 +94,7 @@ contains
       !# @endbug
       !#
       !# @todo
-      !# **Todo list:**n	!#
+      !# **Todo list:**n    !#
       !# @endtodo
       !#
       !# @warning
@@ -142,7 +142,7 @@ contains
       !!!!!!DSM {
 #ifdef cdf
 
-      USE netcdf, ONLY: nf90_nowrite, nf90_open, nf90_put_att
+      use netcdf, only: nf90_nowrite, nf90_open, nf90_put_att
 
 #endif
       !!!!!!DSM}
@@ -151,10 +151,9 @@ contains
 
       character(len=*),parameter :: procedureName="soilmoistureinit"
       character(len=*),parameter :: srcName="soilMoisture.f90"
-      include "constants.f90"
-      include "i8.h"
-      include "files.h"
-
+        include "constants.f90"
+        include "i8.h"
+        include "files.h"
 
       ! arguments:
       integer, intent(in) :: n1, n2, n3, mzg, mzs, npat, ifm
@@ -177,7 +176,6 @@ contains
       real               :: c1, airtemp, pis, soiltemp
       real               :: globalsoilwater (mzg, nnxp(ifm), nnyp(ifm), npat)
       real               :: globalsoilenergy(mzg, nnxp(ifm), nnyp(ifm), npat)
-
       real               :: globalsoiltext(mzg, nnxp(ifm), nnyp(ifm), npat)
       real               :: globalglon(nnxp(ifm), nnyp(ifm))
       real               :: globalglat(nnxp(ifm), nnyp(ifm))
@@ -204,24 +202,24 @@ contains
       integer            :: int_dif_time, idate2, imonth2, iyear2, hourmin, &
          da, sair
       integer            :: ierr
-!!$    integer, parameter :: idim_type_min = 2
-!!$    integer, parameter :: idim_type_max = 7
+      !!$    integer, parameter :: idim_type_min = 2
+      !!$    integer, parameter :: idim_type_max = 7
       integer, parameter :: idim_type     = 4
-!!$    integer            :: il1(nmachs)
-!!$    integer            :: ir2(nmachs)
-!!$    integer            :: jb1(nmachs)
-!!$    integer            :: jt2(nmachs)
-!!$    integer            :: localsize(nmachs,idim_type_min:idim_type_max)
-!!$    integer            :: disp(nmachs,idim_type_min:idim_type_max)
-!!$    integer            :: maxlocalsize
-!!$    integer            :: sizegathered(idim_type_min:idim_type_max)
-!!$    integer            :: maxsizegathered
-!!$    integer            :: sizefullfield(idim_type_min:idim_type_max)
-!!$    integer            :: maxsizefullfield
-!!$    integer            :: globalsize(idim_type_min:idim_type_max)
-!!$    real, allocatable  :: localchunk(:)
-!!$    real, allocatable  :: gathered(:)
-!!$    real, allocatable  :: fullfield(:)
+      !!$    integer            :: il1(nmachs)
+      !!$    integer            :: ir2(nmachs)
+      !!$    integer            :: jb1(nmachs)
+      !!$    integer            :: jt2(nmachs)
+      !!$    integer            :: localsize(nmachs,idim_type_min:idim_type_max)
+      !!$    integer            :: disp(nmachs,idim_type_min:idim_type_max)
+      !!$    integer            :: maxlocalsize
+      !!$    integer            :: sizegathered(idim_type_min:idim_type_max)
+      !!$    integer            :: maxsizegathered
+      !!$    integer            :: sizefullfield(idim_type_min:idim_type_max)
+      !!$    integer            :: maxsizefullfield
+      !!$    integer            :: globalsize(idim_type_min:idim_type_max)
+      !!$    real, allocatable  :: localchunk(:)
+      !!$    real, allocatable  :: gathered(:)
+      !!$    real, allocatable  :: fullfield(:)
       real :: usdum_before(200,200,50)
       character(len=16)  :: varn
       integer            :: i0, j0, ia, iz, ja, jz,irec,nrec
@@ -256,13 +254,13 @@ contains
       idate2  = idate1
 
       ! determinacao do tipo de produto de umidade
-!DSM     do i=256,1,-1
-!DSM        if (usdata_in(i:i)=='/') then
-!DSM           ipref_start = i + 1
-!DSM           exit
-!DSM        endif
-!DSM     enddo
-      ipref_start=index(usdata_in,'/',BACK = .TRUE.)+1
+      !DSM     do i=256,1,-1
+      !DSM        if (usdata_in(i:i)=='/') then
+      !DSM           ipref_start = i + 1
+      !DSM           exit
+      !DSM        endif
+      !DSM     enddo
+      ipref_start=index(usdata_in,'/',BACK = .true.)+1
 
       shift_lon = 0.
 
@@ -298,7 +296,7 @@ contains
          call replace_text(usdata,'MM',cimon,outs);usdata=trim(outs)
          call replace_text(usdata,'DD',cidate,outs);usdata=trim(outs)
 
-         INQUIRE(FILE=usdata,EXIST=theref)
+         inquire(file=usdata,exist=theref)
          if (.not. theref) then
             print*;print*;print*, 'ERROR! Not found the file:'//trim(usdata);print*
             stop 'In:  src/brams/soil_moisture/soilMoisture.F90'
@@ -459,11 +457,11 @@ contains
       if (mchnum==master_num) inquire(file=usmodel(1:ifname), exist=there)
       call parf_bcast(there, master_num)
 
-!    because the the soil moisture dataset interpolated to the model grid
-!    is never checked again, we will allways require the interpolation to
-!    be done every model initialization. this will prevents soil moisture
-!    interpolated for given grid specification being erroneously be used
-!    for a different model configuration
+      !    because the the soil moisture dataset interpolated to the model grid
+      !    is never checked again, we will allways require the interpolation to
+      !    be done every model initialization. this will prevents soil moisture
+      !    interpolated for given grid specification being erroneously be used
+      !    for a different model configuration
 
       ifname = len_trim(usdata)
       if (mchnum==master_num) inquire(file=usdata(1:ifname), exist=there)
@@ -580,7 +578,7 @@ contains
 
             open(2, status='old', form='unformatted', access='direct', &
                recl=    outRealSize()*nlat*nlon, file=usdata(1:len_trim(usdata)))
-!--- check this later         recl=4 * nlat*nlon, file=usdata(1:len_trim(usdata)))
+            !--- check this later         recl=4 * nlat*nlon, file=usdata(1:len_trim(usdata)))
             nrec=1
             do k=1,n4us
                read(2,rec=nrec) soilM_GFS(1:nlon,1:nlat,k)
@@ -622,7 +620,7 @@ contains
 
             open(2, status='old', form='unformatted', access='direct', &
                recl=    outRealSize()*nlat*nlon, file=usdata(1:len_trim(usdata)))
-!--- check this later         recl=4 * nlat*nlon, file=usdata(1:len_trim(usdata)))
+            !--- check this later         recl=4 * nlat*nlon, file=usdata(1:len_trim(usdata)))
             nrec=1
             do k=1,n4us
                read(2,rec=nrec) soilM_GFS(1:nlon,1:nlat,k)
@@ -710,10 +708,10 @@ contains
 
             !allocate(lats_(nlat),lons_(nlon))
             !do j=1,nlat
-            !		lats_(i)=latni+(i-1)*ilatn
+            !       lats_(i)=latni+(i-1)*ilatn
             !enddo
             !do i=1,nlon
-            !		lons_(j)=lonni+(j-1)*ilonn
+            !       lons_(j)=lonni+(j-1)*ilonn
             !enddo
 
          endif
@@ -734,17 +732,17 @@ contains
             close(2)
 
             !open(unit=2,file='./us.gra',action='WRITE',status='REPLACE' &
-            !	,form='UNFORMATTED',access='DIRECT', &
+            !   ,form='UNFORMATTED',access='DIRECT', &
             !recl=4*nlat*nlon)
             !nrec=1
             !do k=0,n4us,1
-            !	write (2,rec=nrec) us_geos(1:nlon,1:nlat,k)
-            !	nrec=nrec+1
+            !   write (2,rec=nrec) us_geos(1:nlon,1:nlat,k)
+            !   nrec=nrec+1
             !enddo
             !close(2)
             !
             !open(unit=2,file='./us.ctl',action='WRITE',status='replace' &
-            !	,form='FORMATTED')
+            !   ,form='FORMATTED')
             !write(2,*) 'dset ^./us.gra'
             !write(2,*) 'undef',undef
             !write(2,*) 'title us'
@@ -807,7 +805,7 @@ contains
       if (ierr/=0) call fatal_error("error allocating tempdum (soilmoistureinit)")
 
 
-      IF (trim(pref) .ne. 'GFS.SOIL:UMID_TEMP.' .and. trim(pref) .ne. 'ERA5.SOIL:UMID_TEMP.') then
+      if (trim(pref) .ne. 'GFS.SOIL:UMID_TEMP.' .and. trim(pref) .ne. 'ERA5.SOIL:UMID_TEMP.') then
 
 
          if (mchnum==master_num) then
@@ -841,16 +839,16 @@ contains
             !slz_us = (/-7.0, -5.0, -3.4, -2.0, -1.0, -0.4, -0.1, 0./)
 
             select case (cihourmin(1:icihourmin-2))
-             case ('00')
-               it=1
-             case ('06')
-               it=2
-             case ('12')
-               it=3
-             case ('18')
-               it=4
-             case default
-               stop 'ERROR! Not found this hour in JULES soil moisture file'
+               case ('00')
+                  it=1
+               case ('06')
+                  it=2
+               case ('12')
+                  it=3
+               case ('18')
+                  it=4
+               case default
+                  stop 'ERROR! Not found this hour in JULES soil moisture file'
             end select
 
             do k=1,n4us
@@ -979,7 +977,7 @@ contains
                               nsoil = nint(globalsoiltext(k,i,j,ipat))
                               !- umidade em mm3/mm3 (gfs case)
                               globalsoilwater(k,i,j,ipat) = usdum(kk+1)
-!write(90,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
+                              !write(90,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
                               ! umidade lida em % (armazenamento)
                               if ( trim(pref)=='sm_v2.'      .or. &
                                  trim(pref)=='gl_sm.gpcp.' .or. &
@@ -993,7 +991,7 @@ contains
                               globalsoilwater(k,i,j,ipat) = max(soilcp(nsoil), &
                                  min(globalsoilwater(k,i,j,ipat), &
                                  slmsts(nsoil)))
-!write(91,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
+                           !write(91,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
                            enddo
                            exit
                         elseif (slz(k)<slz_us(1)) then
@@ -1014,7 +1012,7 @@ contains
                               globalsoilwater(k,i,j,ipat) = max(soilcp(nsoil), &
                                  min(globalsoilwater(k,i,j,ipat), &
                                  slmsts(nsoil)))
-!write(92,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
+                           !write(92,fmt='(6(I4.4,1X),3(F18.6,1X))') k,kk,i,j,ipat,nsoil,globalsoilwater(k,i,j,ipat),usdum(kk+1),slmsts(nsoil)
 
                            enddo
                            exit
@@ -1026,7 +1024,7 @@ contains
          enddo
 
          !- GFS/ERA5 soil moisture and soil temperature
-      ELSEIF (trim(pref) == 'GFS.SOIL:UMID_TEMP.' .or. trim(pref) == 'ERA5.SOIL:UMID_TEMP.') then
+      elseif (trim(pref) == 'GFS.SOIL:UMID_TEMP.' .or. trim(pref) == 'ERA5.SOIL:UMID_TEMP.') then
          do k=1,n4us
             api_us  (:,:,k)= soilM_GFS(:,:,n4us-k+1)
             api_temp(:,:,k)= soilT_GFS(:,:,n4us-k+1)
@@ -1037,23 +1035,23 @@ contains
          ! gathering data
          varn = 'soil_water'
          call gatherdata(idim_type, varn, ifm, mzg, nnxp(ifm), nnyp(ifm), &
-            npat, nmachs, mchnum, mynum, master_num,			 &
+            npat, nmachs, mchnum, mynum, master_num,             &
             soil_water, globalsoilwater)
          varn = 'soil_energy'
          call gatherdata(idim_type, varn, ifm, mzg, nnxp(ifm), nnyp(ifm), &
-            npat, nmachs, mchnum, mynum, master_num,			 &
+            npat, nmachs, mchnum, mynum, master_num,             &
             soil_energy, globalsoilenergy)
          varn = 'soil_text'
          call gatherdata(idim_type, varn, ifm, mzg, nnxp(ifm), nnyp(ifm), &
-            npat, nmachs, mchnum, mynum, master_num,			 &
+            npat, nmachs, mchnum, mynum, master_num,             &
             soil_text, globalsoiltext)
          varn = 'glon'
          call gatherdata(2, varn, ifm, nnxp(ifm), nnyp(ifm), &
-            nmachs, mchnum, mynum, master_num, 	    &
+            nmachs, mchnum, mynum, master_num,      &
             glon, globalglon)
          varn = 'glat'
          call gatherdata(2, varn, ifm, nnxp(ifm), nnyp(ifm), &
-            nmachs, mchnum, mynum, master_num, 	    &
+            nmachs, mchnum, mynum, master_num,      &
             glat, globalglat)
 
          ! loop no dominio global do modelo
@@ -1079,14 +1077,14 @@ contains
                      do jj=max(1,jc-qj1),min(nlat,jc+qj2)
                         do ii=max(1,ic-qi1),min(nlon,ic+qi2)
 
-!			 if (api_us(ii,jj,k)>0.) then
+                           !            if (api_us(ii,jj,k)>0.) then
 
                            do ipat=2,npat
                               ncount = ncount + 1
                               usdum  (k) = usdum  (k) + api_us  (ii,jj,k)
                               tempdum(k) = tempdum(k) + api_temp(ii,jj,k)
                            enddo
-!                         endif
+                        !                         endif
                         enddo
                      enddo
 
@@ -1113,7 +1111,7 @@ contains
                      enddo
                   enddo
                   !---smoothness
-                  IF(USE_SMOOTH_PROF > 0) THEN
+                  if(USE_SMOOTH_PROF > 0) then
                      ipat=2
                      do k=1,mzg
                         ncount = 0 ; tend1d=0.
@@ -1129,7 +1127,7 @@ contains
                         globalsoilwater (k,i,j,:)=tend2d(k,1)
                         globalsoilenergy(k,i,j,:)=tend2d(k,2)
                      enddo
-                  ENDIF
+                  endif
                   !if(maxval(usdum)>0.) print*,"soilM=",maxval(usdum),minval(globalsoilwater(:,i,j,:))
 
 
@@ -1137,19 +1135,19 @@ contains
             enddo ! loop i
          enddo  ! loop j
          ! --- adjust soil moisture, if desired
-         IF(factorsm .ne. 1.) globalsoilenergy = globalsoilenergy * factorsm
-      ELSE
+         if(factorsm .ne. 1.) globalsoilenergy = globalsoilenergy * factorsm
+      else
 
          stop 'unknown soil moisture data type'
 
-      ENDIF
+      endif
 
       !-- scattering local data
       !-- 1) soil water
       call mk_4_buff(globalsoilwater(:,:,:,:), soil_water(:,:,:,:), &
          mzg, nnxp(ifm), nnyp(ifm), npat, mzg, n2, n3, npat, ia, iz, ja, jz)
 
-      IF (trim(pref) .ne. 'GFS.SOIL:UMID_TEMP.' .and. &
+      if (trim(pref) .ne. 'GFS.SOIL:UMID_TEMP.' .and. &
          trim(pref) .ne. 'ERA5.SOIL:UMID_TEMP.'.and. &
          usdata_in(ipref-10:ipref) .ne. 'YYYYMMDD.nc' ) then
          !----- recalculate soil_energy
@@ -1182,7 +1180,7 @@ contains
 
 
          !- GFS/ERA5 soil moisture and soil temperature
-      ELSEIF (trim(pref) == 'GFS.SOIL:UMID_TEMP.' .or. trim(pref) == 'ERA5.SOIL:UMID_TEMP.') then
+      elseif (trim(pref) == 'GFS.SOIL:UMID_TEMP.' .or. trim(pref) == 'ERA5.SOIL:UMID_TEMP.') then
 
 
          !-- scattering local data
@@ -1234,7 +1232,7 @@ contains
          !endif
 
 
-      ELSEIF (usdata_in(ipref-10:ipref)=='YYYYMMDD.nc') then  !DSM - Lendo a temperatura e umidade do solo proveniente do JULES
+      elseif (usdata_in(ipref-10:ipref)=='YYYYMMDD.nc') then  !DSM - Lendo a temperatura e umidade do solo proveniente do JULES
 
          !-- 2) soil temperature (using soil_energy array)
          call mk_4_buff(globalsoilenergy(:,:,:,:), soil_energy(:,:,:,:), &
@@ -1262,7 +1260,7 @@ contains
          enddo
          deallocate(t_soil,t_soilJ)
 
-      ENDIF
+      endif
 
       deallocate(api_us, usdum,  tempdum, prlat, prlon,api_temp)
 
@@ -1271,186 +1269,186 @@ contains
    end subroutine soilMoistureInit
 
 
-!!$  ! Recreating Global Information (Gathering data)
-!!$  SUBROUTINE gatherData2D(idim_type, varn, ifm, mzg, nnxp, nnyp, npat, nwave, &
-!!$       nmachs, mchnum, mynum, master_num,                                   &
-!!$       localData2D, globalData2D)
-!!$
-!!$    USE ReadBcst, ONLY: &
-!!$         PreProcAndGather, & ! Subroutine
-!!$         LocalSizesAndDisp   ! Subroutine
-!!$    USE mem_grid, ONLY : &
-!!$         GlobalSizes         ! Subroutine
-!!$    USE ParLib, ONLY: &
-!!$         parf_bcast ! Subroutine
-!!$
-!!$    IMPLICIT NONE
-!!$    INCLUDE "i8.h"
-!!$    ! Arguments:
-!!$    INTEGER, INTENT(IN)           :: idim_type, ifm, mzg, nnxp, nnyp, npat, &
-!!$         nwave, nmachs, mchnum, mynum, master_num
-!!$    CHARACTER(LEN=16), INTENT(IN) :: varn
-!!$    REAL, INTENT(IN)              :: localData2D(:,:)
-!!$    REAL, INTENT(OUT)             :: globalData2D(:,:)
-!!$    ! Local Variables:
-!!$    CHARACTER(LEN=16)  :: localVarn
-!!$    INTEGER            :: ierr
-!!$    INTEGER, PARAMETER :: idim_type_min = 2
-!!$    INTEGER, PARAMETER :: idim_type_max = 7
-!!$    INTEGER            :: il1(nmachs)
-!!$    INTEGER            :: ir2(nmachs)
-!!$    INTEGER            :: jb1(nmachs)
-!!$    INTEGER            :: jt2(nmachs)
-!!$    INTEGER            :: localSize(nmachs,idim_type_min:idim_type_max)
-!!$    INTEGER            :: disp(nmachs,idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxLocalSize
-!!$    INTEGER            :: sizeGathered(idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxSizeGathered
-!!$    INTEGER            :: sizeFullField(idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxsizeFullField
-!!$    INTEGER            :: globalSize(idim_type_min:idim_type_max)
-!!$    REAL, ALLOCATABLE  :: localChunk(:)
-!!$    REAL, ALLOCATABLE  :: gathered(:)
-!!$    REAL, ALLOCATABLE  :: fullField(:)
-!!$
-!!$    ! Recreating Global information about Soil Water
-!!$    ! grid dependent, field independent constants for gather and unpacking
-!!$    ! as a function of idim_type
-!!$    CALL LocalSizesAndDisp(ifm, il1, ir2, jb1, jt2, localSize, disp)
-!!$    maxLocalSize = MAXVAL(localSize(mynum,:))
-!!$    ALLOCATE(localChunk(maxLocalSize), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating localChunk (gatherData)")
-!!$    ENDIF
-!!$    CALL CopyLocalChunk(localData2D(1,1), localChunk, &
-!!$         LocalSize(mynum,idim_type))
-!!$    sizeGathered(:) = disp(nmachs,:) + localSize(nmachs,:)
-!!$    maxSizeGathered = MAXVAL(sizeGathered)
-!!$    ALLOCATE(gathered(maxSizeGathered), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating gathered (gatherData)")
-!!$    ENDIF
-!!$    ! grid dependent field sizes as a function of idim_type
-!!$    CALL GlobalSizes(ifm, nmachs, nwave, globalSize)
-!!$    IF (mchnum==master_num) THEN
-!!$       sizeFullField(:) = globalSize(:)
-!!$    ELSE
-!!$       sizeFullField(:) = 1
-!!$    END IF
-!!$    maxSizeFullField = MAXVAL(sizeFullField)
-!!$    ALLOCATE(fullField(sizeFullField(idim_type)), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating fullField (gatherData)")
-!!$    ENDIF
-!!$    localVarn = trim(varn)
-!!$    CALL PreProcAndGather(.FALSE., ifm, idim_type, localVarn, &
-!!$         il1, ir2, jb1, jt2, localSize, disp,                 &
-!!$         localSize(mynum,idim_type), LocalChunk,              &
-!!$         sizeGathered(idim_type), gathered,                   &
-!!$         sizeFullField(idim_type), fullField                  )
-!!$
-!!$    IF (mchnum==master_num) THEN
-!!$       globalData2D = RESHAPE(fullField, (/nnxp, nnyp/))
-!!$    ENDIF
-!!$
-!!$    call parf_bcast(globalData2D, int(nnxp,i8), int(nnyp,i8), master_num)
-!!$
-!!$    DEALLOCATE(fullField)
-!!$    DEALLOCATE(gathered)
-!!$    DEALLOCATE(localChunk)
-!!$
-!!$  END SUBROUTINE gatherData2D
-!!$
-!!$  ! Recreating Global Information (Gathering data)
-!!$  SUBROUTINE gatherData4D(idim_type, varn, ifm, mzg, nnxp, nnyp, npat, nwave, &
-!!$       nmachs, mchnum, mynum, master_num,                                   &
-!!$       localData4D, globalData4D)
-!!$
-!!$    USE ReadBcst, ONLY: &
-!!$         PreProcAndGather, & ! Subroutine
-!!$         LocalSizesAndDisp   ! Subroutine
-!!$    USE mem_grid, ONLY : &
-!!$         GlobalSizes         ! Subroutine
-!!$    USE ParLib, ONLY: &
-!!$         parf_bcast ! Subroutine
-!!$
-!!$    IMPLICIT NONE
-!!$    INCLUDE "i8.h"
-!!$    ! Arguments:
-!!$    INTEGER, INTENT(IN)           :: idim_type, ifm, mzg, nnxp, nnyp, npat, &
-!!$         nwave, nmachs, mchnum, mynum, master_num
-!!$    CHARACTER(LEN=16), INTENT(IN) :: varn
-!!$    REAL, INTENT(IN)              :: localData4D(:,:,:,:)
-!!$    REAL, INTENT(OUT)             :: globalData4D(:,:,:,:)
-!!$    ! Local Variables:
-!!$    CHARACTER(LEN=16)  :: localVarn
-!!$    INTEGER            :: ierr
-!!$    INTEGER, PARAMETER :: idim_type_min = 2
-!!$    INTEGER, PARAMETER :: idim_type_max = 7
-!!$    INTEGER            :: il1(nmachs)
-!!$    INTEGER            :: ir2(nmachs)
-!!$    INTEGER            :: jb1(nmachs)
-!!$    INTEGER            :: jt2(nmachs)
-!!$    INTEGER            :: localSize(nmachs,idim_type_min:idim_type_max)
-!!$    INTEGER            :: disp(nmachs,idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxLocalSize
-!!$    INTEGER            :: sizeGathered(idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxSizeGathered
-!!$    INTEGER            :: sizeFullField(idim_type_min:idim_type_max)
-!!$    INTEGER            :: maxsizeFullField
-!!$    INTEGER            :: globalSize(idim_type_min:idim_type_max)
-!!$    REAL, ALLOCATABLE  :: localChunk(:)
-!!$    REAL, ALLOCATABLE  :: gathered(:)
-!!$    REAL, ALLOCATABLE  :: fullField(:)
-!!$
-!!$    ! Recreating Global information about Soil Water
-!!$    ! grid dependent, field independent constants for gather and unpacking
-!!$    ! as a function of idim_type
-!!$    CALL LocalSizesAndDisp(ifm, il1, ir2, jb1, jt2, localSize, disp)
-!!$    maxLocalSize = MAXVAL(localSize(mynum,:))
-!!$    ALLOCATE(localChunk(maxLocalSize), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating localChunk (gatherData)")
-!!$    ENDIF
-!!$    CALL CopyLocalChunk(localData4D(1,1,1,1), localChunk, &
-!!$         LocalSize(mynum,idim_type))
-!!$    sizeGathered(:) = disp(nmachs,:) + localSize(nmachs,:)
-!!$    maxSizeGathered = MAXVAL(sizeGathered)
-!!$    ALLOCATE(gathered(maxSizeGathered), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating gathered (gatherData)")
-!!$    ENDIF
-!!$    ! grid dependent field sizes as a function of idim_type
-!!$    CALL GlobalSizes(ifm, nmachs, nwave, globalSize)
-!!$    IF (mchnum==master_num) THEN
-!!$       sizeFullField(:) = globalSize(:)
-!!$    ELSE
-!!$       sizeFullField(:) = 1
-!!$    END IF
-!!$    maxSizeFullField = MAXVAL(sizeFullField)
-!!$    ALLOCATE(fullField(sizeFullField(idim_type)), stat=ierr)
-!!$    IF (ierr/=0) THEN
-!!$       CALL fatal_error("Error allocating fullField (gatherData)")
-!!$    ENDIF
-!!$    localVarn = trim(varn)
-!!$    CALL PreProcAndGather(.FALSE., ifm, idim_type, localVarn, &
-!!$         il1, ir2, jb1, jt2, localSize, disp,                 &
-!!$         localSize(mynum,idim_type), LocalChunk,              &
-!!$         sizeGathered(idim_type), gathered,                   &
-!!$         sizeFullField(idim_type), fullField                  )
-!!$
-!!$    IF (mchnum==master_num) THEN
-!!$       globalData4D = RESHAPE(fullField, (/mzg, nnxp, nnyp, npat/))
-!!$    ENDIF
-!!$
-!!$    call parf_bcast(globalData4D, &
-!!$         int(mzg,i8), int(nnxp,i8), int(nnyp,i8), int(npat,i8), master_num)
-!!$
-!!$    DEALLOCATE(fullField)
-!!$    DEALLOCATE(gathered)
-!!$    DEALLOCATE(localChunk)
-!!$
-!!$  END SUBROUTINE gatherData4D
+   !!$  ! Recreating Global Information (Gathering data)
+   !!$  SUBROUTINE gatherData2D(idim_type, varn, ifm, mzg, nnxp, nnyp, npat, nwave, &
+   !!$       nmachs, mchnum, mynum, master_num,                                   &
+   !!$       localData2D, globalData2D)
+   !!$
+   !!$    USE ReadBcst, ONLY: &
+   !!$         PreProcAndGather, & ! Subroutine
+   !!$         LocalSizesAndDisp   ! Subroutine
+   !!$    USE mem_grid, ONLY : &
+   !!$         GlobalSizes         ! Subroutine
+   !!$    USE ParLib, ONLY: &
+   !!$         parf_bcast ! Subroutine
+   !!$
+   !!$    IMPLICIT NONE
+   !!$    INCLUDE "i8.h"
+   !!$    ! Arguments:
+   !!$    INTEGER, INTENT(IN)           :: idim_type, ifm, mzg, nnxp, nnyp, npat, &
+   !!$         nwave, nmachs, mchnum, mynum, master_num
+   !!$    CHARACTER(LEN=16), INTENT(IN) :: varn
+   !!$    REAL, INTENT(IN)              :: localData2D(:,:)
+   !!$    REAL, INTENT(OUT)             :: globalData2D(:,:)
+   !!$    ! Local Variables:
+   !!$    CHARACTER(LEN=16)  :: localVarn
+   !!$    INTEGER            :: ierr
+   !!$    INTEGER, PARAMETER :: idim_type_min = 2
+   !!$    INTEGER, PARAMETER :: idim_type_max = 7
+   !!$    INTEGER            :: il1(nmachs)
+   !!$    INTEGER            :: ir2(nmachs)
+   !!$    INTEGER            :: jb1(nmachs)
+   !!$    INTEGER            :: jt2(nmachs)
+   !!$    INTEGER            :: localSize(nmachs,idim_type_min:idim_type_max)
+   !!$    INTEGER            :: disp(nmachs,idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxLocalSize
+   !!$    INTEGER            :: sizeGathered(idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxSizeGathered
+   !!$    INTEGER            :: sizeFullField(idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxsizeFullField
+   !!$    INTEGER            :: globalSize(idim_type_min:idim_type_max)
+   !!$    REAL, ALLOCATABLE  :: localChunk(:)
+   !!$    REAL, ALLOCATABLE  :: gathered(:)
+   !!$    REAL, ALLOCATABLE  :: fullField(:)
+   !!$
+   !!$    ! Recreating Global information about Soil Water
+   !!$    ! grid dependent, field independent constants for gather and unpacking
+   !!$    ! as a function of idim_type
+   !!$    CALL LocalSizesAndDisp(ifm, il1, ir2, jb1, jt2, localSize, disp)
+   !!$    maxLocalSize = MAXVAL(localSize(mynum,:))
+   !!$    ALLOCATE(localChunk(maxLocalSize), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating localChunk (gatherData)")
+   !!$    ENDIF
+   !!$    CALL CopyLocalChunk(localData2D(1,1), localChunk, &
+   !!$         LocalSize(mynum,idim_type))
+   !!$    sizeGathered(:) = disp(nmachs,:) + localSize(nmachs,:)
+   !!$    maxSizeGathered = MAXVAL(sizeGathered)
+   !!$    ALLOCATE(gathered(maxSizeGathered), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating gathered (gatherData)")
+   !!$    ENDIF
+   !!$    ! grid dependent field sizes as a function of idim_type
+   !!$    CALL GlobalSizes(ifm, nmachs, nwave, globalSize)
+   !!$    IF (mchnum==master_num) THEN
+   !!$       sizeFullField(:) = globalSize(:)
+   !!$    ELSE
+   !!$       sizeFullField(:) = 1
+   !!$    END IF
+   !!$    maxSizeFullField = MAXVAL(sizeFullField)
+   !!$    ALLOCATE(fullField(sizeFullField(idim_type)), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating fullField (gatherData)")
+   !!$    ENDIF
+   !!$    localVarn = trim(varn)
+   !!$    CALL PreProcAndGather(.FALSE., ifm, idim_type, localVarn, &
+   !!$         il1, ir2, jb1, jt2, localSize, disp,                 &
+   !!$         localSize(mynum,idim_type), LocalChunk,              &
+   !!$         sizeGathered(idim_type), gathered,                   &
+   !!$         sizeFullField(idim_type), fullField                  )
+   !!$
+   !!$    IF (mchnum==master_num) THEN
+   !!$       globalData2D = RESHAPE(fullField, (/nnxp, nnyp/))
+   !!$    ENDIF
+   !!$
+   !!$    call parf_bcast(globalData2D, int(nnxp,i8), int(nnyp,i8), master_num)
+   !!$
+   !!$    DEALLOCATE(fullField)
+   !!$    DEALLOCATE(gathered)
+   !!$    DEALLOCATE(localChunk)
+   !!$
+   !!$  END SUBROUTINE gatherData2D
+   !!$
+   !!$  ! Recreating Global Information (Gathering data)
+   !!$  SUBROUTINE gatherData4D(idim_type, varn, ifm, mzg, nnxp, nnyp, npat, nwave, &
+   !!$       nmachs, mchnum, mynum, master_num,                                   &
+   !!$       localData4D, globalData4D)
+   !!$
+   !!$    USE ReadBcst, ONLY: &
+   !!$         PreProcAndGather, & ! Subroutine
+   !!$         LocalSizesAndDisp   ! Subroutine
+   !!$    USE mem_grid, ONLY : &
+   !!$         GlobalSizes         ! Subroutine
+   !!$    USE ParLib, ONLY: &
+   !!$         parf_bcast ! Subroutine
+   !!$
+   !!$    IMPLICIT NONE
+   !!$    INCLUDE "i8.h"
+   !!$    ! Arguments:
+   !!$    INTEGER, INTENT(IN)           :: idim_type, ifm, mzg, nnxp, nnyp, npat, &
+   !!$         nwave, nmachs, mchnum, mynum, master_num
+   !!$    CHARACTER(LEN=16), INTENT(IN) :: varn
+   !!$    REAL, INTENT(IN)              :: localData4D(:,:,:,:)
+   !!$    REAL, INTENT(OUT)             :: globalData4D(:,:,:,:)
+   !!$    ! Local Variables:
+   !!$    CHARACTER(LEN=16)  :: localVarn
+   !!$    INTEGER            :: ierr
+   !!$    INTEGER, PARAMETER :: idim_type_min = 2
+   !!$    INTEGER, PARAMETER :: idim_type_max = 7
+   !!$    INTEGER            :: il1(nmachs)
+   !!$    INTEGER            :: ir2(nmachs)
+   !!$    INTEGER            :: jb1(nmachs)
+   !!$    INTEGER            :: jt2(nmachs)
+   !!$    INTEGER            :: localSize(nmachs,idim_type_min:idim_type_max)
+   !!$    INTEGER            :: disp(nmachs,idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxLocalSize
+   !!$    INTEGER            :: sizeGathered(idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxSizeGathered
+   !!$    INTEGER            :: sizeFullField(idim_type_min:idim_type_max)
+   !!$    INTEGER            :: maxsizeFullField
+   !!$    INTEGER            :: globalSize(idim_type_min:idim_type_max)
+   !!$    REAL, ALLOCATABLE  :: localChunk(:)
+   !!$    REAL, ALLOCATABLE  :: gathered(:)
+   !!$    REAL, ALLOCATABLE  :: fullField(:)
+   !!$
+   !!$    ! Recreating Global information about Soil Water
+   !!$    ! grid dependent, field independent constants for gather and unpacking
+   !!$    ! as a function of idim_type
+   !!$    CALL LocalSizesAndDisp(ifm, il1, ir2, jb1, jt2, localSize, disp)
+   !!$    maxLocalSize = MAXVAL(localSize(mynum,:))
+   !!$    ALLOCATE(localChunk(maxLocalSize), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating localChunk (gatherData)")
+   !!$    ENDIF
+   !!$    CALL CopyLocalChunk(localData4D(1,1,1,1), localChunk, &
+   !!$         LocalSize(mynum,idim_type))
+   !!$    sizeGathered(:) = disp(nmachs,:) + localSize(nmachs,:)
+   !!$    maxSizeGathered = MAXVAL(sizeGathered)
+   !!$    ALLOCATE(gathered(maxSizeGathered), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating gathered (gatherData)")
+   !!$    ENDIF
+   !!$    ! grid dependent field sizes as a function of idim_type
+   !!$    CALL GlobalSizes(ifm, nmachs, nwave, globalSize)
+   !!$    IF (mchnum==master_num) THEN
+   !!$       sizeFullField(:) = globalSize(:)
+   !!$    ELSE
+   !!$       sizeFullField(:) = 1
+   !!$    END IF
+   !!$    maxSizeFullField = MAXVAL(sizeFullField)
+   !!$    ALLOCATE(fullField(sizeFullField(idim_type)), stat=ierr)
+   !!$    IF (ierr/=0) THEN
+   !!$       CALL fatal_error("Error allocating fullField (gatherData)")
+   !!$    ENDIF
+   !!$    localVarn = trim(varn)
+   !!$    CALL PreProcAndGather(.FALSE., ifm, idim_type, localVarn, &
+   !!$         il1, ir2, jb1, jt2, localSize, disp,                 &
+   !!$         localSize(mynum,idim_type), LocalChunk,              &
+   !!$         sizeGathered(idim_type), gathered,                   &
+   !!$         sizeFullField(idim_type), fullField                  )
+   !!$
+   !!$    IF (mchnum==master_num) THEN
+   !!$       globalData4D = RESHAPE(fullField, (/mzg, nnxp, nnyp, npat/))
+   !!$    ENDIF
+   !!$
+   !!$    call parf_bcast(globalData4D, &
+   !!$         int(mzg,i8), int(nnxp,i8), int(nnyp,i8), int(npat,i8), master_num)
+   !!$
+   !!$    DEALLOCATE(fullField)
+   !!$    DEALLOCATE(gathered)
+   !!$    DEALLOCATE(localChunk)
+   !!$
+   !!$  END SUBROUTINE gatherData4D
    subroutine StoreNamelistFileAtSoilMoisture(oneNamelistFile)
       implicit none
       type(namelistFile), pointer :: oneNamelistFile
@@ -1459,59 +1457,59 @@ contains
       usdata_in = oneNamelistFile%usdata_in
       usmodel_in = oneNamelistFile%usmodel_in
    end subroutine StoreNamelistFileAtSoilMoisture
-END MODULE soilMoisture
+end module soilMoisture
 
  !
  ! prlatlon
  !----------------------------------------------------------------
  ! SUB-ROTINA QUE ESTABELECE LATITUDES E LONGITUDES DOS PONTOS DE
  ! GRADE DO CAMPO DE PRECIPITACAO
-SUBROUTINE apiPrlatlon(nlon, nlat, prlat, prlon, ilatn, ilonn, latni, lonni)
-   IMPLICIT NONE
+subroutine apiPrlatlon(nlon, nlat, prlat, prlon, ilatn, ilonn, latni, lonni)
+   implicit none
    ! Arguments:
-   INTEGER, INTENT(IN) :: nlon, nlat
-   REAL, INTENT(OUT)   :: prlat(nlon,nlat) !(nlon,nlat)
-   REAL, INTENT(OUT)   :: prlon(nlon,nlat) !(nlon,nlat)
-   REAL, INTENT(IN)    ::  ilatn, ilonn, latni, lonni
+   integer, intent(in) :: nlon, nlat
+   real, intent(out)   :: prlat(nlon,nlat) !(nlon,nlat)
+   real, intent(out)   :: prlon(nlon,nlat) !(nlon,nlat)
+   real, intent(in)    ::  ilatn, ilonn, latni, lonni
    ! Local Variables:
-   INTEGER :: i, j
+   integer :: i, j
 
-   DO j=1,nlat
-      DO i=1,nlon
+   do j=1,nlat
+      do i=1,nlon
          prlon(i,j) = lonni + (i-1)*ilonn
          prlat(i,j) = latni + (j-1)*ilatn
-      ENDDO
-   ENDDO
+      enddo
+   enddo
 
-END SUBROUTINE apiPrlatlon
+end subroutine apiPrlatlon
 
  !----------------------------------------------------------------
  ! interpolacao
  !----------------------------------------------------------------
  ! SUB-ROTINA QUE REALIZA INTERPOLACAO ENTRE GRADES (RAMS E UMIDADE DO SOLO)
-SUBROUTINE interpolacao(glon, glat, nlon, nlat, prlat, prlon, &
+subroutine interpolacao(glon, glat, nlon, nlat, prlat, prlon, &
    i1, i2, ic, j1, j2, jc)
 
-   IMPLICIT NONE
+   implicit none
    ! Arguments:
-   INTEGER, INTENT(OUT) :: i1, i2, ic, j1, j2, jc
-   REAL, INTENT(IN)     :: glat, glon
-   INTEGER, INTENT(IN)  :: nlon, nlat
-   REAL, INTENT(IN)     :: prlat(nlon,nlat)
-   REAL, INTENT(IN)     :: prlon(nlon,nlat)
+   integer, intent(out) :: i1, i2, ic, j1, j2, jc
+   real, intent(in)     :: glat, glon
+   integer, intent(in)  :: nlon, nlat
+   real, intent(in)     :: prlat(nlon,nlat)
+   real, intent(in)     :: prlon(nlon,nlat)
    ! Local Variables
-   REAL    :: diffx1, diffx2, diffy1, diffy2
-   INTEGER :: i, j
+   real    :: diffx1, diffx2, diffy1, diffy2
+   integer :: i, j
 
-   DO i=1,nlon
-      IF (glon<=prlon(i,1)) EXIT
-   ENDDO
+   do i=1,nlon
+      if (glon<=prlon(i,1)) exit
+   enddo
    i2 = i
    i1 = i-1
 
-   DO j=1,nlat
-      IF (glat<=prlat(1,j)) EXIT
-   ENDDO
+   do j=1,nlat
+      if (glat<=prlat(1,j)) exit
+   enddo
    j2 = j
    j1 = j-1
 
@@ -1522,26 +1520,26 @@ SUBROUTINE interpolacao(glon, glat, nlon, nlat, prlat, prlon, &
 
    jc = j1
    ic = i1
-   IF (diffx1>diffx2) ic = i2
-   IF (diffy1>diffy2) jc = j2
+   if (diffx1>diffx2) ic = i2
+   if (diffy1>diffy2) jc = j2
 
-   IF (i1<1 .OR. i1>nlon .OR. j1<1 .OR. j1>nlat) THEN
+   if (i1<1 .or. i1>nlon .or. j1<1 .or. j1>nlat) then
       ic = -9999
       jc = -9999
-   ENDIF
+   endif
 
-END SUBROUTINE interpolacao
+end subroutine interpolacao
 
  !----------------------------------------------------------------
 
-SUBROUTINE changeDay(idate1, imonth1, iyear1, INT_DIF_TIME, &
+subroutine changeDay(idate1, imonth1, iyear1, INT_DIF_TIME, &
    idate2, imonth2, iyear2)
-   IMPLICIT NONE
+   implicit none
    ! Arguments:
-   INTEGER, INTENT(IN)  :: idate1, imonth1, iyear1, INT_DIF_TIME
-   INTEGER, INTENT(OUT) :: idate2, imonth2, iyear2
+   integer, intent(in)  :: idate1, imonth1, iyear1, INT_DIF_TIME
+   integer, intent(out) :: idate2, imonth2, iyear2
    ! Local Variables:
-   INTEGER :: i, increm, DMES(12)
+   integer :: i, increm, DMES(12)
 
    ! Initiate DMES
    DMES = (/31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31/)
@@ -1552,54 +1550,54 @@ SUBROUTINE changeDay(idate1, imonth1, iyear1, INT_DIF_TIME, &
 
    increm  = 1
 
-   IF (INT_DIF_TIME<1) increm = increm*(-1)
+   if (INT_DIF_TIME<1) increm = increm*(-1)
 
-   DO i=1,ABS(INT_DIF_TIME)
+   do i=1,ABS(INT_DIF_TIME)
       idate2 = idate2 + increm
-      IF (idate2<1) THEN
+      if (idate2<1) then
          imonth2 = imonth2 + increm
-         IF (imonth2<1) THEN
+         if (imonth2<1) then
             imonth2 = 12
             iyear2  = iyear2 - 1
-         ENDIF
+         endif
          idate2 = DMES(imonth2)
-      ELSEIF (idate2>DMES(imonth2)) THEN
+      elseif (idate2>DMES(imonth2)) then
          imonth2 = imonth2 + increm
-         IF (imonth2>12) THEN
+         if (imonth2>12) then
             imonth2 = 1
             iyear2  = iyear2 + 1
-         ENDIF
+         endif
          idate2 = 1
-      ENDIF
-   ENDDO
+      endif
+   enddo
 
-END SUBROUTINE changeDay
+end subroutine changeDay
 
 
 !-srf END MODULE soilMoisture
 
 !============================================================================
 
-SUBROUTINE Swap32(A, N)
+subroutine Swap32(A, N)
    !
    !      REVERSE ORDER OF BYTES IN INTEGER*4 WORD, or REAL*4
    !
-   IMPLICIT NONE
+   implicit none
    ! Arguments:
-   INTEGER, INTENT(IN)            :: n
-   INTEGER(kind=4), INTENT(INOUT) :: a(n)
+   integer, intent(in)            :: n
+   integer(kind=4), intent(inout) :: a(n)
    ! Local Varaibles:
-   CHARACTER(LEN=1) :: jtemp(4)
-   CHARACTER(LEN=1) :: ktemp
+   character(len=1) :: jtemp(4)
+   character(len=1) :: ktemp
    !
    ! Local variables
-   INTEGER :: i, itemp
+   integer :: i, itemp
 
-   EQUIVALENCE (jtemp(1), itemp)
+   equivalence (jtemp(1), itemp)
    !
-   SAVE
+   save
    !
-   DO i=1,n
+   do i=1,n
       itemp    = a(i)
       ktemp    = jtemp(4)
       jtemp(4) = jtemp(1)
@@ -1608,20 +1606,22 @@ SUBROUTINE Swap32(A, N)
       jtemp(3) = jtemp(2)
       jtemp(2) = ktemp
       a(i)     = itemp
-   ENDDO
+   enddo
 
-END SUBROUTINE Swap32
+end subroutine Swap32
 
 !DSM - Para trocar por exempo AAAAMMDD por 20050425 {
-SUBROUTINE Replace_Text (s,text,rep,outs)
-   CHARACTER(*)        :: s,text,rep
-   CHARACTER(LEN(s)+100) :: outs     ! provide outs with extra 100 char len
-   INTEGER             :: i, nt, nr
+subroutine Replace_Text (s,text,rep,outs)
+   implicit none
+   character(*)        :: s,text,rep
+   character(LEN(s)+100) :: outs     ! provide outs with extra 100 char len
+   integer             :: i, nt, nr
 
    outs = s ; nt = LEN_TRIM(text) ; nr = LEN_TRIM(rep)
-   DO
-      i = INDEX(outs,text(:nt)) ; IF (i == 0) EXIT
+   do
+      i = INDEX(outs,text(:nt)) ; if (i == 0) exit
       outs = outs(:i-1) // rep(:nr) // outs(i+nt:)
-   END DO
-END SUBROUTINE Replace_Text
+   end do
+end subroutine Replace_Text
 !DSM }
+

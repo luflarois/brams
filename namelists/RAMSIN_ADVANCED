@@ -566,6 +566,7 @@ $END
  $DIGITALFILTER
           applyDigitalFilter  = .false.,
          digitalFilterTimeWindow = 43200.,
+         pref_vies = "none",
 
  $END
  $METEOGRAM

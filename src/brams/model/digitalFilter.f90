@@ -29,6 +29,7 @@ module digitalFilter
  ! # ramsin <--
  logical				:: applyDF
  real					:: timeWindowDF
+ character (len=256) :: pref_vies
 
  ! # local
  character(len=f_name_length)		:: fileNameDF
@@ -52,6 +53,8 @@ module digitalFilter
 
        applyDF = oneNamelistFile%applyDigitalFilter
        timeWindowDF = oneNamelistFile%digitalFilterTimeWindow
+		 pref_vies = oneNamelistFile%pref_vies
+
   end subroutine StoreNamelistFileAtdigitalFilter
 
 

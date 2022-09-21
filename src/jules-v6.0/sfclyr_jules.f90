@@ -1,8 +1,8 @@
 !############################# Change Log ##################################
-! Interface entre BRAMS e JULES
+! Interface entre BRAMS e JULESsfclyr_jules.f90sfclyr_jules.f90sfclyr_jules.f90
 ! 
 
-SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile)
+SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile,i0,j0)
 
   !--- Modulos do BRAMS ---
 
@@ -19,7 +19,7 @@ SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile)
    USE mem_basic,     ONLY: basic_g
  
    USE mem_grid ,     ONLY : npatch, nzg, grid_g, time, dtlong, iyear1,imonth1, idate1 &
-                             ,istp,itime1, timmax,zt,ngrid,runtype                   
+                             ,istp,itime1, timmax,zt,ngrid,runtype,nnxp,nnyp                   
    USE rconstants,    ONLY : cpi,cp,alvl,vonk,g,p00,cpor
  
    USE mem_radiate,   ONLY : radiate_g 
@@ -43,8 +43,8 @@ SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile)
    USE mem_brams_jules, ONLY: mynumB,glatB,glonB,nxB,nyB,land_fracB,precipB,swdownB &
                        ,lwdownB,diff_radB,tempB,upsB,vpsB,pstarB,qB,fracB       &
                        ,timestepB,main_run_startB,main_run_endB,ntimestepB,sm_levelsB &
-                       ,dzsoilB,sthuB,tsoilB,tstarB,output_periodB,dir_run_idB &
-                       ,dump_periodB,runtypeB, hfilinB
+                       ,dzsoilB,sthuB,tsoilB,tstarB,viesALL,output_periodB,dir_run_idB &
+                       ,dump_periodB,runtypeB,hfilinB,z1_uvB,z1_tqB
 
    USE gridbox_mean_mod, ONLY: surftiles_to_gbm
 
@@ -79,33 +79,37 @@ SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile)
    USE fluxes, ONLY : emis_surft, land_albedo_ij
   
    !USE aero,          ONLY : co2_3d_ij  
+
+   use digitalFilter, only:
+      pref_vies
    
 
    IMPLICIT NONE
 
    character(len=*), intent(in) :: julesFile
   
-   INTEGER               :: nsoil, fase,ia,iz,ja,jz,hh,mm
+   INTEGER               :: nsoil, fase,ia,iz,ja,jz,hh,mm,a,nt_vies_aux
    INTEGER, PARAMETER :: fat_dtlong=1  ! > 1 para nao executar o JULES em todos os timestep do BRAMS
   
-   INTEGER, INTENT(IN) :: mzp,mxp,myp,jdim,iaI,izI,jaI,jzI
+   INTEGER, INTENT(IN) :: mzp,mxp,myp,jdim,iaI,izI,jaI,jzI,i0,j0
   
-   INTEGER            :: ng,i ,j, k2,l,n,ip,k,ntimestep, itime1_seg
+   INTEGER            :: ng,i ,j,v,l,n,ip,k,ntimestep, itime1_seg,maq,file_size
+   INTEGER,SAVE :: nt_vies
 
    LOGICAL              :: there, start=.TRUE.
 
-   REAL               :: hcpi, zoverl,cx,wtol,psin,piv &
+   REAL               :: zoverl,cx,wtol,psin,piv,dec &
                         ,tempk,fracliq,zts2,ths2,ustar2,tstar2,rstar2
 
    REAL, DIMENSION(:), ALLOCATABLE :: rlongupJ
     
    CHARACTER (LEN=2)  :: tB_str    
 
-   REAL, DIMENSION(mxp,myp) :: rvs2,ups2,vps2,pp2,temp2,pcpgl
+   REAL, DIMENSION(mxp,myp) :: pcpgl
 
    LOGICAL, SAVE , ALLOCATABLE :: run_jules(:)
   
-   REAL, ALLOCATABLE :: dens2(:,:)
+   REAL, ALLOCATABLE :: dens2(:,:),viesG(:,:),viesM(:,:,:),aux1(:,:),aux2(:,:)
   
    TYPE(datetime) :: dti,dtf  ! Placeholder for a datetime in a calculation
 
@@ -113,7 +117,22 @@ SUBROUTINE sfclyr_jules(mzp,mxp,myp,iaI,izI,jaI,jzI,jdim,julesFile)
 
    CHARACTER(LEN=max_file_name_len) :: nml_dir  ! Directory containing namelists
 
-   CHARACTER(LEN=256) :: aux
+   CHARACTER(LEN=256) :: aux,file_vies!,pref_vies
+   
+   CHARACTER(LEN=4), PARAMETER :: vars(5)=(/'UVEL','VVEL','TEMP','UMID','PNMM'/)
+   
+   LOGICAL :: rem_vies
+
+
+!Levar essa variavel para o RAMSIMN
+!pref_vies='NONE' ! prefix to vies files - 'NONE' or '' to no remove vies      
+!pref_vies='/home/demerval/intercomparacao_dk/Oper_DSM/vies_emq/vies_ERA5+OBS_' ! 'NONE' to no remove vies  !Levar essa variavel para o RAMSIMN
+
+IF (LEN(TRIM(pref_vies)) .lt. 5) THEN  
+   rem_vies=.false.
+ELSE
+   rem_vies=.true.
+ENDIF
 
 nml_dir=trim(julesFile)
 
@@ -122,7 +141,7 @@ INQUIRE(FILE=trim(nml_dir)//'/drive.nml',EXIST=there)
 IF (.not. there) THEN
    PRINT*;PRINT*;PRINT*;PRINT*, 'Not found:  '//trim(nml_dir)//'/drive.nml'
    PRINT*;PRINT*, 'Check JULESIN variable in RAMSIN'
-   PRINT*;STOP
+   STOP 'STOP in: sfclyr_jules.f90 (a)'
 ENDIF
 
 ia=iaI-1
@@ -149,21 +168,86 @@ ELSEIF(nnqparm(ng) == 0 .and. level >= 3) THEN
    pcpgl(:,:)=micro_g(ng)%pcpg(:,:)
 ENDIF
 
-rvs2(:,:) = basic_g(ng)%rv(2,:,:)
-ups2(:,:) = basic_g(ng)%up(2,:,:)
-vps2(:,:) = basic_g(ng)%vp(2,:,:)
 
-pp2(:,:)=p00 * ((basic_g(ng)%pi0(2,:,:) + basic_g(ng)%pp(2,:,:)) * cpi) ** cpor
+!--- Remocao de VIES ---{
+IF (start .and. rem_vies) THEN
+   DO v=1,5  ! 1=UVEL 2=VVEL  3=TEMP  4=UMID  5=PNMM
+      file_vies=trim(pref_vies)//vars(v)//'.gra'
+      INQUIRE(FILE=trim(file_vies),EXIST=there)
+      IF (there) THEN
+         INQUIRE(FILE=file_vies, SIZE=file_size)
+         nt_vies_aux=file_size/nnxp(ng)/nnyp(ng)/4
+         IF ( file_size/1./nnxp(ng)/nnyp(ng) .ne. real(file_size/nnxp(ng)/nnyp(ng)) ) THEN
+            PRINT*, 'ERROR: Vies file not compatible: '//trim(file_vies) 
+            PRINT*, nnxp(ng),nnyp(ng),file_size/1./nnxp(ng)/nnyp(ng),real(file_size/nnxp(ng)/nnyp(ng))
+            STOP 'STOP in: sfclyr_jules.f90 (b)'
+         ENDIF
 
-hcpi = .5 * cpi
-DO j=ja,jz
-   DO i=ia,iz
-      k2=int(grid_g(ng)%lpw(i,j))
-      piv = hcpi * (basic_g(ng)%pi0(k2-1,i,j) + basic_g(ng)%pi0(k2,i,j)   &
-            + basic_g(ng)%pp(k2-1,i,j) + basic_g(ng)%pp(k2,i,j))
-      temp2(i,j) = basic_g(ng)%theta(k2,i,j) * piv   != airtemp = tstar_tile
+         IF (.not. ALLOCATED(viesALL)) THEN
+            nt_vies=nt_vies_aux
+            ALLOCATE(viesALL(nxB,nyB,nt_vies,5))
+            viesALL(:,:,:,:)=0.
+         ELSE
+            IF (nt_vies_aux /= nt_vies) THEN
+               PRINT*, 'ERROR: Arquivos de vies com numero de tempos distintos',nt_vies_aux,nt_vies
+               STOP 'STOP in: sfclyr_jules.f90 (c)'
+            ENDIF
+         ENDIF
+
+         ALLOCATE(viesG(nnxp(ng),nnyp(ng)))
+         INQUIRE(IOLENGTH=maq) piv
+         
+         IF (mynum==1) PRINT*, 'Reading: '//TRIM(file_vies)
+         OPEN(77,FILE=TRIM(file_vies),FORM='unformatted', ACCESS='direct',RECL=nnxp(ng)*nnyp(ng)*maq)
+         DO i=1,nt_vies
+            READ(77,REC=i) viesG
+            viesALL(:,:,i,v)=viesG(i0+1:i0+nxB,j0+1:j0+nyB)
+         ENDDO  
+
+         DEALLOCATE (viesG)
+         CLOSE (77)
+      ELSE
+         PRINT*, 'Not found: '//trim(file_vies)
+         STOP 'STOP in: sfclyr_jules.f90 (d)'
+      ENDIF
    ENDDO
-ENDDO
+ENDIF
+
+IF (.not. ALLOCATED(viesM)) THEN
+   ALLOCATE(viesM(nxB,nyB,5))  ! 1=UVEL 2=VVEL  3=TEMP  4=UMID  5=PNMM
+   viesM(:,:,:)=0.
+ENDIF
+
+IF (rem_vies) THEN
+   IF (.not. ALLOCATED(viesALL)) THEN
+      PRINT*, 'pref_vies not is NONE, but not found any vies file with name: '//trim(pref_vies)//'????.gra'
+      STOP 'STOP in: sfclyr_jules.f90 (e)'
+   ENDIF
+ 
+   ALLOCATE(aux1(nxB,nyB),aux2(nxB,nyB))
+
+   a=int(time/3600.+1.0)
+   IF (a+1>nt_vies) a=nt_vies-1
+   dec=time-(a-1)*3600.
+   !--- Vento ---
+   viesM(:,:,1)=(dec*viesALL(:,:,a+1,1) - dec*viesALL(:,:,a,1) + 3600.*viesALL(:,:,a,1))/3600.
+   viesM(:,:,2)=(dec*viesALL(:,:,a+1,2) - dec*viesALL(:,:,a,2) + 3600.*viesALL(:,:,a,2))/3600.
+
+   !--- Temperarura ---
+   viesM(:,:,3)=(dec*viesALL(:,:,a+1,3) - dec*viesALL(:,:,a,3) + 3600.*viesALL(:,:,a,3))/3600.
+
+   !--- Umidade ---
+   viesM(:,:,4)=(dec*viesALL(:,:,a+1,4) - dec*viesALL(:,:,a,4) + 3600.*viesALL(:,:,a,4))/3600. !vies do Td [C]
+   aux1(:,:)=p00 * ((basic_g(ng)%pi0(2,ia:iz,ja:jz) + basic_g(ng)%pp(2,ia:iz,ja:jz)) * cpi) ** cpor  ! Press [Pa]
+   aux2(:,:)=6.122*exp(17.67*(viesM(:,:,4))/(viesM(:,:,4)+243.5))  ! vies do "e" em [mb]
+   viesM(:,:,4)=0.622*aux2(:,:)/(aux1(:,:)-0.38*aux2(:,:))  ! vies de "q" [kg/kg]
+
+   !--- Pressao ---
+   viesM(:,:,5)=(dec*viesALL(:,:,a+1,5) - dec*viesALL(:,:,a,5) + 3600.*viesALL(:,:,a,5))/3600.
+
+   DEALLOCATE(aux1,aux2)
+ENDIF
+!--- Remocao de VIES ---}
 
 runtypeB=runtype
 hfilinB=hfilin
@@ -183,24 +267,29 @@ lwdownB(:,ja)=lwdownB(:,ja+1)
 lwdownB(:,jz)=lwdownB(:,jz-1)
 !------------------------------------------------}
 
+
+! 1=UVEL 2=VVEL  3=TEMP  4=UMID  5=PNMM
 precipB(:,:)   =pcpgl(ia:iz, ja:jz)
 diff_radB(:,:) =0.0 !radiate_g(ng)%rshortdif(ia:iz, ja:jz)  !TMP
-tempB(:,:)     =temp2(ia:iz, ja:jz)
-upsB(:,:)      =ups2(ia:iz, ja:jz)
-vpsB(:,:)      =vps2(ia:iz, ja:jz)
-pstarB(:,:)    =pp2(ia:iz, ja:jz)
-qB(:,:)        =rvs2(ia:iz, ja:jz)/(1+rvs2(ia:iz, ja:jz))
+upsB(:,:)      =basic_g(ng)%up(2,ia:iz, ja:jz) -viesM(:,:,1)
+vpsB(:,:)      =basic_g(ng)%vp(2,ia:iz, ja:jz) -viesM(:,:,2)
+tempB(:,:)     =0.5* (basic_g(ng)%theta(1,ia:iz,ja:jz) + basic_g(ng)%theta(2,ia:iz,ja:jz)) * &
+                .5 * cpi * (basic_g(ng)%pi0(1,ia:iz,ja:jz) + basic_g(ng)%pi0(2,ia:iz,ja:jz)   &
+                + basic_g(ng)%pp(1,ia:iz,ja:jz) + basic_g(ng)%pp(2,ia:iz,ja:jz)) - viesM(:,:,3)
 
-!print*, ia,iz,ja,jz,swdownB(10,1),swdownB(10,18),swdownB(10,2), lwdownB(10,1),lwdownB(10,18),lwdownB(10,2)
-!stop 'em /home/demerval/JULES-BRAMS/JULES5.8-BRAMS5.4/source/BRAMS5.4/src/jules/sfclyr_jules.f90'
+qB(:,:)        =basic_g(ng)%rv(2,ia:iz, ja:jz)/(1+basic_g(ng)%rv(2,ia:iz, ja:jz))-viesM(:,:,4)
+pstarB(:,:)    =p00 * ((basic_g(ng)%pi0(2,ia:iz, ja:jz) + basic_g(ng)%pp(2,ia:iz, ja:jz)) * cpi) ** cpor - viesM(:,:,5)*100.
 
 IF (start) THEN
    start=.false.
-   
+
    dump_periodB=nint(frqhis)
    output_periodB=nint(frqanl)
    dir_run_idB=trim(afilout)
    
+   z1_uvB=zt(2) * grid_g(ng)%rtgt(ia,ja)  !Utilizando a altura do primeiro ponto (a variacao eh inferior a 1 metro)
+   z1_tqB=2.0
+
    sm_levelsB=nzg
    IF (.not. ALLOCATED(dzsoilB)) ALLOCATE(dzsoilB(sm_levelsB))
    IF (.not. ALLOCATED(sthuB)) ALLOCATE(sthuB(sm_levelsB,nxB,nyB))
@@ -227,25 +316,18 @@ IF (start) THEN
       ENDDO
    ENDDO
       
-   tstarB(:,:)=temp2(ia:iz, ja:jz)
+   !--- Utilizando a media da temperatura do primeiro (abaixo do solo) e segundo nivel sigma ---
+   tstarB(:,:) = 0.5* (basic_g(ng)%theta(1,ia:iz,ja:jz) + basic_g(ng)%theta(2,ia:iz,ja:jz)) * &
+                .5 * cpi * (basic_g(ng)%pi0(1,ia:iz,ja:jz) + basic_g(ng)%pi0(2,ia:iz,ja:jz)   &
+                + basic_g(ng)%pp(1,ia:iz,ja:jz) + basic_g(ng)%pp(2,ia:iz,ja:jz))
    !-------------------------------------} 
-  
+
    ALLOCATE(glatB(nxB,nyB),glonB(nxB,nyB),land_fracB(nxB,nyB))
    glatB=grid_g(ng)%glat(ia:iz,ja:jz)
    glonB=grid_g(ng)%glon(ia:iz,ja:jz)
 
-   !WHERE(leaf_g(ng)%patch_area(ia:iz,ja:jz,1)>0.99)
-   !   land_fracB=0.0
-   !ELSEWHERE
       land_fracB=1.0  ! calculando em todos os pontos, pois senao dah problema no history, pois 
                       ! o patch_area estah mudando ao longo do tempo.
-   !END WHERE
-
-!write(44,*)land_fracB
-!print*,ia,iz,ja,jz,nxB,nyB,time
-!stop 'em /home/demerval/JULES-BRAMS/JULES5.8-BRAMS5.4/source/BRAMS5.4/src/jules/sfclyr_jules.f90'
-
-
 
    timestepB=nint(dtlong*fat_dtlong)  !DSM foi colocado em sfclyr_jules.f90 um fator multiplicando o dtlong para nao chamar o JULES a cada timeStep do BRAMS
    dti%year=iyear1
@@ -255,8 +337,6 @@ IF (start) THEN
    dti%time=itime1_seg
 
    dtf = datetime_advance(dti, nint(timmax))
-
-!print*, dti%time,timmax
 
    if (trim(runtypeB)=='HISTORY') then
       aux=trim(hfilinB(index(hfilinB,'-head.txt',BACK = .TRUE.)-17:index(hfilinB,'-head.txt',BACK = .TRUE.)-1))
@@ -275,11 +355,6 @@ IF (start) THEN
 
    ntimestep=datetime_diff(dtf, dti)/dtlong+1
    ALLOCATE (run_jules(ntimestep))
-
-!print*,'b===>',dti
-!print*,dtf
-!print*,fat_dtlong,ntimestep,fat_dtlong
-!stop 'aasfhd'
 
    ntimestepB=1
    run_jules=.FALSE.
@@ -346,7 +421,7 @@ DO l=1,land_pts
    i = ainfo%land_index(l) - ( j-1 ) * row_length
    IF (i<1 .or. i>nxB .or. j<1 .or. j>nyB .or. i+ia-1>iz .or. j+ja-1>jz) THEN
       PRINT*, "ERRO... conversao incorreta de l para i,j -> l,i,j=",l,i,j
-      STOP
+      STOP 'STOP in: sfclyr_jules.f90 (f)'
    ENDIF
    !--- Acoplando o rlongup ---{
    radiate_g(ng)%rlongup(i+ia-1,j+ja-1) = rlongupJ(l)
@@ -419,7 +494,7 @@ jules_g(ng)%rv2mj(ia:iz,ja:jz)=sf_diag%q1p5m(:,:)/(1-sf_diag%q1p5m(:,:))
 
    IF (i<1 .or. i>nxB .or. j<1 .or. j>nyB .or. i+ia-1>iz .or. j+ja-1>jz) THEN
       PRINT*, "ERRO... conversao incorreta de l para i,j -> l,i,j=",l,i,j
-      STOP
+      STOP 'STOP in: sfclyr_jules.f90 (g)'
    ENDIF
 
    jules_g(ng)%gpp(i+ia-1,j+ja-1)=trifctltype%gpp_gb(l)
@@ -469,7 +544,7 @@ SUBROUTINE frac_from_leaf( ntype,nx,ny,npatch,patch_area,leaf_class,frac )
          DO i=1,nx
             IF (i > nx .or. j > ny) THEN
                PRINT*, 'ERRO!!! i > nx ou j > ny - i, nx, j, ny =',i, nx, j, ny
-               STOP
+               STOP 'STOP in: sfclyr_jules.f90 (h)'
             ENDIF
 
             DO n=2,npatch
@@ -483,7 +558,7 @@ SUBROUTINE frac_from_leaf( ntype,nx,ny,npatch,patch_area,leaf_class,frac )
                !--- Checando se encontrou um indice valido para a vegetacao do JULES ---
                IF (tJ>ntype) THEN
                   PRINT*, 'ERRO!!! Nao foi encontrado uma correspondencia entre BRAMS e JULES'
-                  STOP
+                  STOP 'STOP in: sfclyr_jules.f90 (i)'
                ENDIF
                
                frac(i,j,tJ)=frac(i,j,tJ) + max(0.,patch_area(i,j,n))
@@ -516,7 +591,7 @@ SUBROUTINE frac_from_leaf( ntype,nx,ny,npatch,patch_area,leaf_class,frac )
          DO i=1,nx
             IF (i > nx .or. j > ny) THEN
                PRINT*, 'ERRO!!! i > nx ou j > ny - i, nx, j, ny =',i, nx, j, ny
-               STOP
+               STOP 'STOP in: sfclyr_jules.f90 (j)'
             ENDIF
 
             DO n=2,npatch
@@ -530,7 +605,7 @@ SUBROUTINE frac_from_leaf( ntype,nx,ny,npatch,patch_area,leaf_class,frac )
                !--- Checando se encontrou um indice valido para a vegetacao do JULES ---
                IF (tJ>ntype) THEN
                   PRINT*, 'ERRO!!! Nao foi encontrado uma correspondencia entre BRAMS e JULES'
-                  STOP
+                  STOP 'STOP in: sfclyr_jules.f90 (k)'
                ENDIF
                
                frac(i,j,tJ)=frac(i,j,tJ) + max(0.,patch_area(i,j,n))
@@ -560,7 +635,7 @@ SUBROUTINE frac_from_leaf( ntype,nx,ny,npatch,patch_area,leaf_class,frac )
    else
       PRINT*, "ntype=",ntype
       PRINT*, "ATENCAO... ntype <> 9 ou de 13, Deve-se ajustar a subrotina brams2jules em init_frac2brams.f90"
-      STOP  
+      STOP 'STOP in: sfclyr_jules.f90 (l)'
    endif
   
 END SUBROUTINE frac_from_leaf
@@ -600,7 +675,7 @@ SUBROUTINE brams2jules(veg,ntype)
    else
       PRINT*, "ntype=",ntype
       PRINT*, "ATENCAO... ntype <> 9 ou de 13, Deve-se ajustar a subrotina brams2jules em init_frac2brams.f90"
-      STOP  
+      STOP  'STOP in: sfclyr_jules.f90 (m)'
    endif
 END SUBROUTINE brams2jules
 
