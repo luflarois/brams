@@ -4,7 +4,7 @@
   
   closure_choice   = 10,10,3, != closure for the mass flux at the cloud base
   
-  cum_entr_rate    =9.e-4, 1.e-3, 5.e-4, != initial gross entrainment rate for 
+  cum_entr_rate    =6.3e-4, 1.e-3, 5.e-4, != initial gross entrainment rate for 
                                           != deep, shallow, congestus
   
   dicycle          = 1,            != 0/1/2:  diurnal cycle closure, default = 1
@@ -19,16 +19,16 @@
   use_scale_dep    = 1,     != 0/1: turn ON/OFF the scale dependence approach
   sig_factor       = 0.22,  != exponential factor for the sigma determination (orig = 0.1)
 
-  convection_tracer = 1,
-  add_coldpool_prop = 3,
-  add_coldpool_clos = 2,
-  add_coldpool_diff = 3,
+  convection_tracer = 0,
+  add_coldpool_prop = 0,
+  add_coldpool_clos = 0,
+  add_coldpool_diff = 0,
 
   tau_ocea_cp       = 7200.,
   tau_land_cp       = 7200.,
   mx_buoy1          = 250.5,   ! J/kg
   mx_buoy2          = 20004.0, ! J/kg
-  use_memory        = 2,
+  use_memory        = 0,
   use_gustiness     = 0,
 
   sgs_w_timescale  = 1,     != 0/1: uses vertical velocity for determination of tau_ecmwf

@@ -41,7 +41,8 @@ MODULE CUPARM_GRELL3
 				            ztn,     &   ! INTENT(IN)
 				            zmn,     &   ! INTENT(IN)
 				            akminvar,&   ! INTENT(IN)
-                        nxtnest
+                        nxtnest, &
+                        naddsc
 
   use mem_varinit, only: nudlat
 
@@ -89,7 +90,11 @@ MODULE CUPARM_GRELL3
 
 !----------- GF - GEOS-5
   USE ConvPar_GF_GEOS5, only: GF_GEOS5_DRV, deep, shal, mid , nmp, lsmp , cnmp &
-                            , GF_convpar_init,apply_sub_mp,icumulus_gf, liq_ice_number_conc
+                            , GF_convpar_init,apply_sub_mp,icumulus_gf, liq_ice_number_conc &
+                            , convection_tracer, tau_ocea_cp, tau_land_cp,use_gustiness
+
+! use mem_scalar, only: scalar_g
+
 !-----------
 
   use ccatt_start, only: ccatt
@@ -121,7 +126,15 @@ MODULE CUPARM_GRELL3
      REAL, POINTER, DIMENSION(:,:  )  ::aa0
      REAL, POINTER, DIMENSION(:,:  )  ::aa1   
      REAL, POINTER, DIMENSION(:,:  )  ::aa1_bl
-   
+     REAL, POINTER, DIMENSION(:,:  )  ::aa1_adv
+     REAL, POINTER, DIMENSION(:,:  )  ::aa1_radpbl
+     REAL, POINTER, DIMENSION(:,:  )  ::vcpool
+     REAL, POINTER, DIMENSION(:,:  )  ::umcl
+     REAL, POINTER, DIMENSION(:,:  )  ::vmcl
+     REAL, POINTER, DIMENSION(:,:  )  ::wlpool
+     REAL, POINTER, DIMENSION(:,:  )  ::sgs_shf
+     REAL, POINTER, DIMENSION(:,:  )  ::sgs_lhf
+
      !-- 3 dimensions     
      REAL, POINTER, DIMENSION(:,:,:)  ::cugd_ttens
      REAL, POINTER, DIMENSION(:,:,:)  ::cugd_qvtens
@@ -132,6 +145,12 @@ MODULE CUPARM_GRELL3
      REAL, POINTER, DIMENSION(:,:,:)  ::nisrc
      REAL, POINTER, DIMENSION(:,:,:)  ::usrc
      REAL, POINTER, DIMENSION(:,:,:)  ::vsrc
+     REAL, POINTER, DIMENSION(:,:,:)  ::buoysrc
+     REAL, POINTER, DIMENSION(:,:,:)  ::cnv_tr
+     REAL, POINTER, DIMENSION(:,:,:)  ::qexcp
+     REAL, POINTER, DIMENSION(:,:,:)  ::hexcp
+
+
      REAL, POINTER, DIMENSION(:,:,:)  ::mupdp
      REAL, POINTER, DIMENSION(:,:,:)  ::mdddp
      REAL, POINTER, DIMENSION(:,:,:)  ::mupsh
@@ -223,6 +242,19 @@ Contains
     if (associated(g3d%aa0))    nullify (g3d%aa0)
     if (associated(g3d%aa1))    nullify (g3d%aa1)
     if (associated(g3d%aa1_bl)) nullify (g3d%aa1_bl)
+    if (associated(g3d%aa1_adv)) nullify (g3d%aa1_adv)
+    if (associated(g3d%aa1_radpbl)) nullify (g3d%aa1_radpbl)
+    if (associated(g3d%vcpool))    nullify (g3d%vcpool)
+    if (associated(g3d%umcl  ))    nullify (g3d%umcl)
+    if (associated(g3d%vmcl  ))    nullify (g3d%vmcl)
+    if (associated(g3d%wlpool))    nullify (g3d%wlpool)
+    if (associated(g3d%sgs_shf))   nullify (g3d%sgs_shf)
+    if (associated(g3d%sgs_lhf))   nullify (g3d%sgs_lhf)
+    if (associated(g3d%sgs_lhf))   nullify (g3d%sgs_lhf)
+    if (associated(g3d%sgs_lhf))   nullify (g3d%sgs_lhf)
+    if (associated(g3d%qexcp  ))   nullify (g3d%qexcp  )
+    if (associated(g3d%hexcp  ))   nullify (g3d%hexcp  )
+
 
     if (associated(g3d%cugd_ttens))  nullify (g3d%cugd_ttens)
     if (associated(g3d%cugd_qvtens)) nullify (g3d%cugd_qvtens)
@@ -234,6 +266,9 @@ Contains
     if (associated(g3d%nisrc)) nullify (g3d%nisrc)
     if (associated(g3d%usrc )) nullify (g3d%usrc)
     if (associated(g3d%vsrc )) nullify (g3d%vsrc)
+    if (associated(g3d%buoysrc )) nullify (g3d%buoysrc)
+    if (associated(g3d%cnv_tr )) nullify (g3d%cnv_tr)
+
     if (associated(g3d%mupdp)) nullify (g3d%mupdp)
     if (associated(g3d%mupsh)) nullify (g3d%mupsh)
     if (associated(g3d%mdddp)) nullify (g3d%mdddp)
@@ -271,6 +306,16 @@ Contains
     allocate (g3d%aa0        (m2,m3))       ;g3d%aa0        =0.0
     allocate (g3d%aa1        (m2,m3))       ;g3d%aa1        =0.0
     allocate (g3d%aa1_bl     (m2,m3))       ;g3d%aa1_bl     =0.0
+    allocate (g3d%aa1_adv    (m2,m3))       ;g3d%aa1_adv    =0.0
+    allocate (g3d%aa1_radpbl (m2,m3))       ;g3d%aa1_radpbl =0.0
+    allocate (g3d%vcpool     (m2,m3))       ;g3d%vcpool     =0.0
+    allocate (g3d%vmcl       (m2,m3))       ;g3d%vmcl       =0.0
+    allocate (g3d%umcl       (m2,m3))       ;g3d%umcl       =0.0
+    allocate (g3d%wlpool     (m2,m3))       ;g3d%wlpool     =0.0
+    allocate (g3d%sgs_shf    (m2,m3))       ;g3d%sgs_shf    =0.0
+    allocate (g3d%sgs_lhf    (m2,m3))       ;g3d%sgs_lhf    =0.0
+    allocate (g3d%qexcp      (m1,m2,m3))    ;g3d%qexcp      =0.0
+    allocate (g3d%hexcp      (m1,m2,m3))    ;g3d%hexcp      =0.0
 
     allocate (g3d%thsrc(m1, m2, m3))  ;g3d%thsrc=0.0
     allocate (g3d%rtsrc(m1, m2, m3))  ;g3d%rtsrc=0.0
@@ -290,6 +335,10 @@ Contains
     allocate (g3d%eupdp(m1, m2, m3))  ;g3d%eupdp=0.0
     allocate (g3d%dupdp(m1, m2, m3))  ;g3d%dupdp=0.0
   
+    if(nnqparm(ng) == 8 ) then ! and convection_tracer = 1
+      allocate (g3d%buoysrc(m1, m2, m3))  ;g3d%buoysrc=0.0
+      allocate (g3d%cnv_tr (m1, m2, m3))  ;g3d%cnv_tr =0.0
+    endif 
   end subroutine alloc_grell3
 
 !-----------------------------------------
@@ -359,6 +408,26 @@ Contains
          ,ng, npts, imean, 'AA1 :2:hist:anal:mpti:mpt3')
     if (associated(g3d%aa1_bl)) call InsertVTab (g3d%aa1_bl   ,g3dm%aa1_bl    &
          ,ng, npts, imean, 'AA1_BL :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%aa1_radpbl)) call InsertVTab (g3d%aa1_radpbl   ,g3dm%aa1_radpbl    &
+         ,ng, npts, imean, 'AA1_RADPBL :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%aa1_adv)) call InsertVTab (g3d%aa1_adv   ,g3dm%aa1_adv    &
+         ,ng, npts, imean, 'AA1_ADV :2:hist:anal:mpti:mpt3')
+    
+    if (associated(g3d%vcpool)) call InsertVTab (g3d%vcpool   ,g3dm%vcpool    &
+        ,ng, npts, imean, 'VCPOOL :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%vmcl)) call InsertVTab (g3d%vmcl   ,g3dm%vmcl    &
+        ,ng, npts, imean, 'VMCL :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%umcl)) call InsertVTab (g3d%umcl   ,g3dm%umcl    &
+        ,ng, npts, imean, 'UMCL :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%wlpool)) call InsertVTab (g3d%wlpool   ,g3dm%wlpool    &
+        ,ng, npts, imean, 'WLPOOL :2:hist:anal:mpti:mpt3')
+
+    if (associated(g3d%sgs_shf)) call InsertVTab (g3d%sgs_shf   ,g3dm%sgs_shf   &
+        ,ng, npts, imean, 'SGS_SHF :2:hist:anal:mpti:mpt3')
+    if (associated(g3d%sgs_lhf)) call InsertVTab (g3d%sgs_lhf   ,g3dm%sgs_lhf   &
+        ,ng, npts, imean, 'SGS_LHF :2:hist:anal:mpti:mpt3')
+
+ 
 
     !- 3D Arrays
     npts=m1*m2*m3
@@ -414,6 +483,28 @@ Contains
          'VSRC :3:hist:anal:mpti:mpt3')
     endif
 
+ 
+    if (associated(g3d%buoysrc))  &
+ 
+         call InsertVTab (g3d%buoysrc     ,g3dm%buoysrc     &
+         ,ng, npts, imean,  &
+         'BUOYSRC :3:hist:anal:mpti:mpt3'//trim(arrprop))
+
+ !-----------
+   if (associated(g3d%cnv_tr))  &
+         call InsertVTab (g3d%cnv_tr     ,g3dm%cnv_tr     &
+         ,ng, npts, imean,  &
+         'CNV_TR :3:hist:anal:mpti:mpt3:mpt1'//trim(arrprop))
+ !--------------------
+   if (associated(g3d%qexcp)) &
+         call InsertVTab (g3d%qexcp   ,g3dm%qexcp   &
+        ,ng, npts, imean, 'QEXCP :3:hist:anal:mpti:mpt3:mpt1'//trim(arrprop))
+   if (associated(g3d%hexcp)) &
+         call InsertVTab (g3d%hexcp   ,g3dm%hexcp   &
+        ,ng, npts, imean, 'HEXCP :3:hist:anal:mpti:mpt3:mpt1'//trim(arrprop))
+
+
+
     if (associated(g3d%mupsh))  &
          call InsertVTab (g3d%mupsh    ,g3dm%mupsh     &
          ,ng, npts, imean,  &
@@ -459,7 +550,7 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
   integer, intent(IN) :: iens,iinqparm,iinshcu
   type(Grid), pointer :: OneGrid ! intent(in)
   integer :: i,j,k
-  real :: grid_length,theta2temp
+  real :: grid_length,theta2temp,tau_cp, src_cnvtr, snk_cnvtr
 
   REAL, DIMENSION( mxp , myp ) :: aot500,temp2m
 
@@ -468,26 +559,25 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
   INTEGER, DIMENSION(mzp)   :: flip
   INTEGER, DIMENSION(mxp,myp) :: kpbl,do_this_column
   REAL   , DIMENSION(mtp)   :: FSCAV_INT
-  REAL   , DIMENSION(mxp,myp) :: CNV_FRC,AA0,AA1,AA2,AA3,AA1_BL,AA1_CIN,TAU_BL,TAU_EC
+  REAL   , DIMENSION(mxp,myp) :: CNV_FRC,AA0,AA1,AA1_ADV,AA1_RADPBL,AA1_BL,AA1_CIN &
+                              ,AA2,AA3,TAU_BL,TAU_EC
   REAL   , DIMENSION(mzp,mxp,myp ) ::  zm3d	&
  				      ,zt3d	&
-        	         ,dm3d	&
+        	          ,dm3d	&
  				      ,up	&
  				      ,vp	&
  				      ,wp	&
  				      ,rvap	&
  				      ,temp	&
  				      ,press	&
-                 !,rhenv   &
-                  , gsf_t	& ! grid-scale forcing for temp
+                      !,rhenv   &
+                      , gsf_t	& ! grid-scale forcing for temp
  				      , gsf_q	& ! grid-scale forcing fo rv
  				      ,sgsf_t	& ! sub-grid scale forcing for temp
  				      ,sgsf_q	  ! sub-grid scale forcing for rv
 
   REAL,  DIMENSION(mzp , mxp, myp ) ::          &
-		      buoy_exc    &
-		     ,advf_t	   &
-		     ,SRC_BUOY    &
+		      advf_t	  &
 		     ,REVSU_GF    &
 		     ,PRFIL_GF    & 
 		     ,VAR3d_aGF,VAR3d_bGF,VAR3d_cGF,VAR3d_dGF
@@ -544,6 +634,17 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
 !if(initial.eq.2.and.time.lt.cptime) return
 !if(initial.eq.2.and.time.lt.dtlt) return
 
+!if(time < 10800.) return
+ 
+ !--- convection tracer 
+ if( nnqparm(ngrid) == 8  .and. convection_tracer == 1) then  
+
+      if(use_gustiness == 1) call sgs_coldpool_sfx_and_diff()
+
+      call adv_convection_tracer()
+ endif
+
+
  if(mod(time,confrq) < dtlt  .or. time < 0.01 .or. abs(time-cptime) < 0.01) then
  
     !-start convective transport of tracers
@@ -569,6 +670,11 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
       g3d_g(ngrid)%usrc      = 0.0
       g3d_g(ngrid)%vsrc      = 0.0
     endif
+
+    if(nnqparm(ngrid) == 8) then
+      g3d_g(ngrid)%buoysrc   = 0.0
+    endif
+
     ishallow_g3=0
     
     if(i_forcing /= 1) then
@@ -966,7 +1072,11 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
       !-- read the GF namelist
       call GF_convpar_init(mynum)
       read_GF_ConvPar_nml = .false.
+      !scalar_g(1,1)%sclp(:,:,:) = 0.  ! Check this later
+      !if(mynum==7)  g3d_g(ngrid)%cnv_tr=10. ! only for debugging
     ENDIF
+
+    
 
     !--- these arrays must be set to zero every timestep.
     ierr4d_tmp        = 0.0
@@ -1057,9 +1167,6 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
            sgsf_t (k,i,j) =  cuforc_sh_g(ngrid)%lsfth(kr,i,j) * theta2temp !K/s     PBL only 
            sgsf_q (k,i,j) =  cuforc_sh_g(ngrid)%lsfrt(kr,i,j)              !kg/kg/s PBL only 
            advf_t (k,i,j) =  cuforc_g   (ngrid)%lsfth(kr,i,j) * theta2temp ! advection only, see 'prepare_lsl' routine
-!falta---
-	        buoy_exc(k,i,j)= 0.
-!falta---    
     enddo;enddo;enddo
 
     IF(APPLY_SUB_MP == 1) THEN
@@ -1078,19 +1185,21 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
        sfc_press(i,j) = 0.5*( ((basic_g(ngrid)%pp(1,i,j)+basic_g(ngrid)%pi0(1,i,j))/cp)**cpor*p00 +  &
                               ((basic_g(ngrid)%pp(2,i,j)+basic_g(ngrid)%pi0(2,i,j))/cp)**cpor*p00 ) !Pa
 
-       xland(i,j) = leaf_g(ngrid)%patch_area(i,j,1) ! water = 1, land < 1
+       xland(i,j) = leaf_g(ngrid)%patch_area(i,j,1); if(xland(i,j) < 0.98) xland(i,j)=0. ! water = 1, land < 1
        lons (i,j) = grid_g(ngrid)%glon(i,j)*3.14159/180. !- convert to rad
        lats (i,j) = grid_g(ngrid)%glat(i,j)*3.14159/180. !- convert to rad
-      !dx2d (i,j) = sqrt(deltaxn(ngrid)*deltayn(ngrid))
        dx2d (i,j) = sqrt(1./(grid_g(ngrid)%dxt(i,j)*grid_g(ngrid)%dyt(i,j)))
        col_sat       (i,j) = 0.
        stochastic_sig(i,j) = 1.
+       
+       !-- stores precip of the previous timestep 
+       AA2(i,j)   = g3d_ens_g(1,ngrid)%apr(i,j) !cprr4d_tmp(:,:,deep) -> previous time step
     enddo;enddo
 
     if(ilwrtyp==4 .or. iswrtyp==4) THEN
-   	    aot500(:,:)=carma(ngrid)%aot(:,:,11)
+       aot500(:,:)=carma(ngrid)%aot(:,:,11)
      else
-   	    aot500(:,:)=0.0
+       aot500(:,:)=0.0
     endif
 
     if(isfcl == 5 .and.  time > dtlt ) then
@@ -1100,6 +1209,14 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
                            (basic_g(ngrid)%pp(1,:,:)+basic_g(ngrid)%pi0(1,:,:))/cp + &
                             basic_g(ngrid)%theta(2,:,:)*&
 		                     (basic_g(ngrid)%pp(2,:,:)+basic_g(ngrid)%pi0(2,:,:))/cp ) !Kelvin
+    endif
+
+   
+    if(use_gustiness==2 .and. convection_tracer==1)  then
+       call sgs_coldpool_sfx_and_diff()
+    else
+       g3d_g(ngrid)%sgs_shf(:,:) = turb_g(ngrid)%sflux_t(:,:)
+       g3d_g(ngrid)%sgs_lhf(:,:) = turb_g(ngrid)%sflux_r(:,:)
     endif
 
     !- call the driver routine to apply the parameterization
@@ -1120,8 +1237,13 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
                      ,lats        &
                      ,aot500      &
                      ,temp2m      &
-                     ,turb_g(ngrid)%sflux_r &
-                     ,turb_g(ngrid)%sflux_t &
+                    !,turb_g(ngrid)%sflux_r &
+                    !,turb_g(ngrid)%sflux_t &
+                     ,g3d_g(ngrid)%sgs_lhf  &
+                     ,g3d_g(ngrid)%sgs_shf  &
+                     ,g3d_g(ngrid)%qexcp    &
+                     ,g3d_g(ngrid)%hexcp    &
+                     ,g3d_g(ngrid)%wlpool   &
                      ,grid_g(ngrid)%topt    &
                      ,xland                 &
                      ,sfc_press             &
@@ -1142,12 +1264,12 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
 		               !--- atmos composition state
                      ,TRACER   & !- note: uses GEOS-5 data structure
                      !---- forcings---
-                     ,buoy_exc &
-		               , gsf_t   & ! forcing for theta adv+rad
-		               , gsf_q   & ! forcing for rv    adv
+                     ,g3d_g(ngrid)%cnv_tr & 
+                     , gsf_t   & ! forcing for theta adv+rad
+		             , gsf_q   & ! forcing for rv    adv
                      ,advf_t   &
-		               ,sgsf_t   & ! forcing for theta pbl
- 		               ,sgsf_q   & ! forcing for rv    pbl
+		             ,sgsf_t   & ! forcing for theta pbl
+ 		             ,sgsf_q   & ! forcing for rv    pbl
                      !---- output ----
                      ,cuparm_g(ngrid)%conprr  &
                      ,g3d_g(ngrid)%lightn_dens& 
@@ -1162,12 +1284,12 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
                      ,sub_mpqi    & 
                      ,sub_mpql    & 
                      ,sub_mpcf    & 
-                     ,src_buoy    &
+                     ,g3d_g(ngrid)%buoysrc    &
                      ,src_chem    & ! tracer tendency
                      ,revsu_gf    &
                      ,prfil_gf    & 
                      !
-		               ,do_this_column    &
+		             ,do_this_column    &
                      ,ierr4d_tmp        & 
                      ,jmin4d_tmp        &
                      ,klcl4d_tmp        &
@@ -1194,16 +1316,20 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
                      ,tup5d_tmp         &
                      ,conv_cld_fr5d_tmp &
                      !-- for debug/diagnostic
-                     ,AA0,AA1,AA2,AA3,AA1_BL,AA1_CIN,TAU_BL,TAU_EC  &
+                     ,AA0,AA1,AA1_ADV,AA1_RADPBL,AA1_BL,AA2,AA3,AA1_CIN,TAU_BL,TAU_EC  &
                      ,VAR2d,VAR3d_aGF,VAR3d_bGF,VAR3d_cGF,VAR3d_dGF &
                      )
   !
   !-- outputs ....
-   
+
    if( icumulus_gf(deep) == 1) then 
-      g3d_g(ngrid)%aa0    (:,:) = AA0    (:,:)
-      g3d_g(ngrid)%aa1    (:,:) = AA1    (:,:)
-      g3d_g(ngrid)%aa1_bl (:,:) = AA1_BL (:,:)
+      g3d_g(ngrid)%aa0        (:,:) = AA0        (:,:)
+      g3d_g(ngrid)%aa1        (:,:) = AA1        (:,:)
+      g3d_g(ngrid)%aa1_bl     (:,:) = AA1_BL     (:,:)
+      !g3d_g(ngrid)%aa1_radpbl (:,:) = AA1_RADPBL (:,:)
+      g3d_g(ngrid)%aa1_adv    (:,:) = AA1_ADV    (:,:)
+      !tmp
+      g3d_g(ngrid)%aa1_radpbl (:,:) = AA3 (:,:)
    endif
 
    !-- saving the precip of each mode in the array g3d_ens_g(1,ngrid)%accapr(
@@ -1299,7 +1425,7 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
              zup5d        (k,i,j,n,ngrid) =  zup5d_tmp        (i,j,k,n)
              clwup5d      (k,i,j,n,ngrid) =  clwup5d_tmp      (i,j,k,n)
              up_massdetr5d(k,i,j,n,ngrid) =  up_massdetr5d_tmp(i,j,k,n)
-           enddo
+         enddo
         enddo
 	     if( chemistry >= 0) THEN ! - for convective transport only
 	       do n=1,maxiens
@@ -1331,18 +1457,6 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
      enddo;enddo
    endif
 
-   !
-   !for checking
-   !do j=1,myp
-   !  do i=1,mxp
-   !	 if(do_this_column(i,j)==0) cycle
-   !
-   !	 call moveup(mzp,g3d_g(ngrid)%THSRC (:,i,j))
-   !	 call moveup(mzp,g3d_g(ngrid)%RTSRC (:,i,j))
-   !	 call moveup(mzp,g3d_g(ngrid)%CLSRC (:,i,j))
-   !	 call moveup(mzp,g3d_g(ngrid)%USRC  (:,i,j))
-   ! 	 call moveup(mzp,g3d_g(ngrid)%VSRC  (:,i,j))
-   !enddo;enddo
 !--------------------------------------------------------------------------------------------------------------------------
 !--------------------------------------------------------------------------------------------------------------------------
 !--------------------------------------------------------------------------------------------------------------------------
@@ -1457,6 +1571,42 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
 
    endif
 ! ------------- Stilt - BRAMS coupling  ------------------ ML]
+
+ 
+!-- convection tracer update 
+  if( nnqparm(ngrid) == 8 .and. convection_tracer == 1) then 
+!      if (time>7200.) return 
+!      if(naddsc > 0) then
+
+         do j=1,myp
+           do i=1,mxp
+              tau_cp = 1.* tau_land_cp - (1.-1.)*tau_ocea_cp
+              do k=1,mzp-1
+                 kr=k+1
+
+                 !- sink term (exp decay tau_cp hours)
+                 snk_cnvtr = dtlt * abs( g3d_g(ngrid)%cnv_tr(k,i,j) )/tau_cp
+   
+                 !- source term
+                 !- downdraft detrainment of buoyancy [ J/kg s^{-1}]
+                 !- negative sign => source for updraft lifting
+                 src_cnvtr = - dtlt * min(0.,g3d_g(ngrid)%buoysrc(k,i,j))
+                 
+                 !- 'continuity' equation = ADV + SRC - SINK
+                 g3d_g(ngrid)%cnv_tr(k,i,j) = g3d_g(ngrid)%cnv_tr(k,i,j) + src_cnvtr - snk_cnvtr
+
+
+ !               !-- send the convection_tracer out for ADV + DIFF
+ !               snk_cnvtr = dtlt * abs( scalar_g(1,1)%sclp(kr,i,j) )/tau_cp
+ !               scalar_g(1,1)%sclp(kr,i,j) = scalar_g(1,1)%sclp(kr,i,j) + src_cnvtr &
+ !                                        - snk_cnvtr
+ 
+         enddo;enddo;enddo
+ !     else
+ !        print*,"convection_tracer is on, but NADDSC is zero"
+ !        stop 'wrong NADDSC for convection_tracer = 1'
+ !     endif
+   endif
 !
 end subroutine CUPARM_GRELL3_CATT
 !
@@ -1844,7 +1994,7 @@ IMPLICIT NONE
            ! tendencia do theta devida a conv profunda
            RTHcuten(k,i,J) = cp/exner * RTHCUTEN(k,i,J) !- theta(k,i,j)*pt(k,i,j)/exner
         !endif
-	!RQVcuten(k,i,J) = RQVCUTEN(k,i,J)+ RQCCUTEN(k,i,J)
+	     !RQVcuten(k,i,J) = RQVCUTEN(k,i,J)+ RQCCUTEN(k,i,J)
         !RQCcuten(k,i,J) = 0.
 
     enddo; enddo; enddo
@@ -2413,3 +2563,912 @@ SUBROUTINE get_mean_tke(m1,tkmin,tke1d,rtgt,kzi,dn01d,tke_pbl)
    
  END SUBROUTINE get_mean_tke
 !-------------------------------------------------------------------
+!------------------------------------------------------------------------
+subroutine adv_convection_tracer()
+ 
+  use cuparm_grell3, only:  g3d_g
+  use mem_tend    ,only: tend
+  use mem_grid    ,only: time,ngrid,dtlt, dyncore_flag,dzt,ztn
+  use mem_cuparm  ,only: confrq ,cuparm_g_sh
+  use node_mod    ,only: mxp,myp,mzp ,ia,iz,ja,jz,mynum, nmachs
+  use mem_grid    ,only: ngrid, nzpmax, grid_g, dtlt, if_adap, jdim, time, &
+                         zt, zm, dzm, dzt, hw4,itopo
+  use mem_basic   ,only: basic_g
+  use mem_scratch ,only: vctr1,vctr2
+  use mem_turb    ,only: turb_vars, turb_g , xkhkm
+  use mem_scratch1_grell, only: jmin4d
+  USE ConvPar_GF_GEOS5, only: add_coldpool_prop,mx_buoy2,use_gustiness, add_coldpool_diff
+  use rconstants
+  
+  USE extras, ONLY:   &
+         na_extra3d,  &    
+         extra3d,     &         
+         na_extra2d,  &
+         extra2d
+
+  use ModComm, only: commHaloAcou
+
+  implicit none
+  include "i8.h"
+  real, parameter :: xlv = 2.5e6, Kfr = 0.9, epsx = 1.e2
+  !- scratchs (local arrays)
+  real :: vt3da(mzp,mxp,myp)
+  real :: vt3db(mzp,mxp,myp)
+  real :: vt3dc(mzp,mxp,myp)
+  real :: vt3dh(mzp,mxp,myp)
+  real :: vt3dj(mzp,mxp,myp)
+  real :: vt3dk(mzp,mxp,myp)
+  real :: vt3di(mzp,mxp,myp)
+  real :: vt3df(mzp,mxp,myp)
+  real :: vt3dg(mzp,mxp,myp)
+  real :: vt3de(mzp,mxp,myp)
+  real :: vt3dd(mzp,mxp,myp)
+  real :: scr1(mzp,mxp,myp)
+  real, dimension (mzp,mxp,myp) :: scalart
+  real, dimension (mxp,myp)     :: sfcflx
+
+  integer :: i,j,k, k_lfs,kr,n, k_amb_wind
+  !- parameter to define if include or not vertical advection
+  logical,parameter :: vert_adv = .true. ! must be true even for 2-D advection
+
+ !real, parameter :: p2=300., p1=850., p3=900., p4=750.
+  real, parameter :: p2=400., p1=750., p3=950., p4=750., p5=900.,p6=500.,p7=600.&
+                    ,p1allj=980.,p2allj=800.
+  real :: press, dzpho,total_dz, u, v, w, ullj,vllj,wllj,total_dz_llj
+  real :: theta2temp,temp , rvap   ,zmsl , H_env ,dz,     MCL_speed, aux, dtlt_local 
+  character(len=255) :: wind_type = 'lower_troposphere' !  'Corfidi'
+  real, parameter  :: factor=0.6,  tuning=1.0
+  real, parameter  :: alpha = 45 * 3.1416/180. ! 45 graus slope of cold pool head
+  integer, parameter  :: nsubsteps = 1
+  logical :: singleProcRun
+
+  singleProcRun = nmachs == 1 !Avalia se está rodando com mais de 1 proc
+
+  !do i = 1,mxp;  do j = 1,myp
+  !if(jmin4d(i,j,1,1) > 0) print*,"jmin",i,j,jmin4d(i,j,1,1)
+  !enddo;enddo
+  !k_lfs=30
+         
+         dtlt_local = dtlt/float(nsubsteps)
+         !-
+         !----------- includes advection for the convection tracer 
+         vt3dd=0.0
+         vt3de=0.0
+         vt3df=0.0
+         vt3dg=0.0
+         vt3dh=0.0
+         vt3di=0.0
+         vt3dj=0.0
+         vt3dk=0.0
+         vctr1=0.0
+         vctr2=0.0
+
+      if(trim(wind_type) == 'real_wind') then  !=============
+
+         if(dyncore_flag == 0) then
+          do j = 1,myp
+            do i = 1,mxp
+              do k = 1,mzp             
+                k_lfs = k
+                vt3da(k,i,j) = (basic_g(ngrid)%up(k_lfs,i,j)+ basic_g(ngrid)%uc(k_lfs,i,j))*dtlt_local*0.5
+                vt3db(k,i,j) = (basic_g(ngrid)%vp(k_lfs,i,j)+ basic_g(ngrid)%vc(k_lfs,i,j))*dtlt_local*0.5
+                vt3dc(k,i,j) = (basic_g(ngrid)%wp(k_lfs,i,j)+ basic_g(ngrid)%wc(k_lfs,i,j))*dtlt_local*0.5
+              end do
+            end do
+          end do
+        
+         else
+
+          do j = 1,myp
+            do i = 1,mxp
+              do k = 1,mzp
+                 k_lfs = k
+                vt3da(k,i,j) = basic_g(ngrid)%uc(k_lfs,i,j)*dtlt_local
+                vt3db(k,i,j) = basic_g(ngrid)%vc(k_lfs,i,j)*dtlt_local
+                vt3dc(k,i,j) = basic_g(ngrid)%wc(k_lfs,i,j)*dtlt_local
+              end do
+            end do
+          end do
+         
+         endif
+
+      elseif(trim(wind_type) == 'Corfidi') then              
+
+          do j = 1,myp
+            do i = 1,mxp
+              
+              !=============  Define the mean cloud motion wind
+              total_dz = 0. ; u = 0. ; v = 0. ; w = 0.
+              do k = 1,mzp
+                press = 1.e-2*((basic_g(ngrid)%pp(k,i,j)+basic_g(ngrid)%pi0(k,i,j))/cp)**cpor*p00 !hPa
+                if(press .le. p1 .and. press .ge. p2 ) then 
+
+                  dzpho  = grid_g(ngrid)%rtgt(i,j)/dzt(k) * basic_g(ngrid)%dn0(k,i,j)
+                  u = u + basic_g(ngrid)%uc(k,i,j)*dzpho
+                  v = v + basic_g(ngrid)%vc(k,i,j)*dzpho
+                  w = w + basic_g(ngrid)%wc(k,i,j)*dzpho
+                  total_dz = total_dz + dzpho                
+                endif 
+              end do
+
+              !=============  low level jet 
+              total_dz_llj= 0.;  ullj= 0. ; vllj= 0. ;  wllj = 0.  
+              do k = 1,mzp
+                press = 1.e-2*((basic_g(ngrid)%pp(k,i,j)+basic_g(ngrid)%pi0(k,i,j))/cp)**cpor*p00 !hPa
+                if(press .gt. p1 .and. press .le. p3 ) then 
+
+                  dzpho  = grid_g(ngrid)%rtgt(i,j)/dzt(k) * basic_g(ngrid)%dn0(k,i,j)
+                  ullj = ullj + basic_g(ngrid)%uc(k,i,j)*dzpho
+                  vllj = vllj + basic_g(ngrid)%vc(k,i,j)*dzpho
+                  wllj = wllj + basic_g(ngrid)%wc(k,i,j)*dzpho
+                  total_dz_llj = total_dz_llj + dzpho                
+                endif 
+              end do
+     
+              !============= combines MCMW - LLJ (Corfidi 2003) => MCS propagation
+              vt3da(:,i,j) = u/(total_dz+1.e-8)*dtlt_local +  ullj/(total_dz_llj+1.e-8)*dtlt_local
+              vt3db(:,i,j) = v/(total_dz+1.e-8)*dtlt_local +  vllj/(total_dz_llj+1.e-8)*dtlt_local
+              vt3dc(:,i,j) = w/(total_dz+1.e-8)*dtlt_local +  wllj/(total_dz_llj+1.e-8)*dtlt_local
+              !print*,'U2=',i,j, maxval(vt3da(:,i,j))/dtlt_local,maxval(basic_g(ngrid)%uc(:,i,j))
+            end do
+          end do
+      !
+      else
+      
+         do j = 1,myp
+            do i = 1,mxp
+              
+              !=============  Define the mean cloud motion wind by the lowest part of the troposphere
+              total_dz = 0. ; u = 0. ; v = 0. !; w = 0.
+              do k = 1,mzp
+                press = 1.e-2*((basic_g(ngrid)%pp(k,i,j)+basic_g(ngrid)%pi0(k,i,j))/cp)**cpor*p00 !hPa
+               
+               !-artigo
+               if(press .ge. p7 .and. press .le. p5 ) then !p5=900.,p7=600.
+               !-Amz llj
+               !if(press .ge. p2allj .and. press .le. p1allj ) then !p1allj=980.,p2allj=800.
+
+                  dzpho    = grid_g(ngrid)%rtgt(i,j)/dzt(k) * basic_g(ngrid)%dn0(k,i,j)
+                  u        = u + basic_g(ngrid)%uc(k,i,j)*dzpho
+                  v        = v + basic_g(ngrid)%vc(k,i,j)*dzpho
+                 !w        = w + basic_g(ngrid)%wc(k,i,j)*dzpho
+                  total_dz = total_dz + dzpho
+                  
+                endif 
+              end do
+              !============= 
+              vt3da(:,i,j) = u/(total_dz+1.e-8)*dtlt_local 
+              vt3db(:,i,j) = v/(total_dz+1.e-8)*dtlt_local 
+              vt3dc(:,i,j) = 0. !w/(total_dz+1.e-8)*dtlt_local 
+              
+            end do
+          end do
+
+      endif     !=============
+
+      !-- save the mean cloud layer velocity
+      g3d_g(ngrid)%umcl(:,:) = vt3da(2,:,:)/dtlt_local  !mean cloud layer U-wind
+      g3d_g(ngrid)%vmcl(:,:) = vt3db(2,:,:)/dtlt_local  !mean cloud layer V-wind
+      
+      !--- add cold pool velocity
+      if( add_coldpool_prop .ge. 0 ) then
+         do j = 1,myp
+             do i = 1,mxp
+
+                g3d_g(ngrid)%wlpool(i,j) = 0.
+                g3d_g(ngrid)%vcpool(i,j) = 0.
+                total_dz = 0.
+                
+               loopK: do k = 2,mzp
+                  press = 1.e-2*((basic_g(ngrid)%pp(k,i,j)+basic_g(ngrid)%pi0(k,i,j))/cp)**cpor*p00 !hPa
+                     
+                  !if( g3d_g(ngrid)%cnv_tr(k,i,j) < epsx .or. press    .lt. p7    ) cycle 
+                  if( g3d_g(ngrid)%cnv_tr(k,i,j) < epsx .or. total_dz .gt. 2000. ) exit loopK 
+                 
+                  theta2temp = ( basic_g(ngrid)%pp   (k,i,j) + basic_g(ngrid)%pi0(k,i,j))/cp   !K
+                  temp       =   basic_g(ngrid)%theta(k,i,j) * theta2temp  !K
+                  rvap       =   basic_g(ngrid)%rv   (k,i,j)               !kg/kg
+                  zmsl       =   ztn(k,ngrid)*grid_g(ngrid)%rtgt(i,j) + grid_g(ngrid)%topt(i,j)  !m
+                  
+                  H_env      = cp * temp + xlv * rvap + g* zmsl !J/kg
+                  dz         = grid_g(ngrid)%rtgt(i,j)/dzt(k)  !m
+                  total_dz   = total_dz + dz
+                
+                  !-- See eq 8.5 page 346 Storm and Cloud Dynamics, Cotton et al. 2nd edition.
+                  g3d_g(ngrid)%vcpool(i,j) = g3d_g(ngrid)%vcpool(i,j) +  &
+                                             (g*dz*min(mx_buoy2,g3d_g(ngrid)%cnv_tr(k,i,j))/H_env)
+                  
+                  !-- Max vertical velocity at the leading of the cold pool
+                  !-- see "Estimating the Maximum Vertical Velocity at the Leading Edge 
+                  !--      of a Density Current, Reif et al 2020"
+                  g3d_g(ngrid)%wlpool(i,j) = g3d_g(ngrid)%wlpool(i,j) +                      &
+                                             (g*dz*min(mx_buoy2,g3d_g(ngrid)%cnv_tr(k,i,j)) * & 
+                                                   sin(alpha)**2 / H_env )
+
+                  kr = k
+
+                end do loopK
+                !-- see page 346 of the same book.
+                g3d_g(ngrid)%vcpool(i,j) = min(20., Kfr *sqrt(g3d_g(ngrid)%vcpool(i,j)))
+                
+                g3d_g(ngrid)%wlpool(i,j) = min(10., Kfr *sqrt(g3d_g(ngrid)%wlpool(i,j)))
+
+                !if(g3d_g(ngrid)%vcpool(i,j) > 1.) &
+                !print*,"cp=", i,j,g3d_g(ngrid)%vcpool(i,j) ,maxval( g3d_g(ngrid)%cnv_tr(2:k,i,j) )/1000.,kr 
+
+             end do
+         end do
+         
+         !-- replace the MCL wind by the cold pool velocity, keeping the MCL wind direction
+         if( add_coldpool_prop == 1 ) then
+          do j = 1,myp
+             do i = 1,mxp
+             
+             MCL_speed= sqrt( (g3d_g(ngrid)%umcl(i,j))**2 + (g3d_g(ngrid)%vmcl(i,j))**2 )
+             aux =  1./(MCL_speed+1.e-6)
+             
+             g3d_g(ngrid)%umcl(i,j) = aux * g3d_g(ngrid)%umcl(i,j) *  g3d_g(ngrid)%vcpool(i,j)
+             g3d_g(ngrid)%vmcl(i,j) = aux * g3d_g(ngrid)%vmcl(i,j) *  g3d_g(ngrid)%vcpool(i,j)
+
+             vt3da(:,i,j)=  g3d_g(ngrid)%umcl(i,j) * dtlt_local  !mean cloud layer U-wind is the cold pool propagation
+             vt3db(:,i,j)=  g3d_g(ngrid)%vmcl(i,j) * dtlt_local  !mean cloud layer V-wind is the cold pool propagation
+             end do
+          end do       
+         endif 
+
+         !-- add cold pool to the MCL wind, keeping the original MCL wind direction
+         !-- 'factor' = 0.62 is suggested by Simpson and Britter (1980) to add the cold pool velocity 
+         !-- the to ambient wind (see page 346 Storm and Cloud Dynamics, Cotton et al. 2nd edition)
+         if( add_coldpool_prop == 2 ) then
+          do j = 1,myp
+            do i = 1,mxp
+           
+             MCL_speed= sqrt( (g3d_g(ngrid)%umcl(i,j))**2 + (g3d_g(ngrid)%vmcl(i,j))**2 )
+             aux =  (factor * MCL_speed + g3d_g(ngrid)%vcpool(i,j))/(MCL_speed+1.e-6)
+             g3d_g(ngrid)%umcl(i,j) = aux * g3d_g(ngrid)%umcl(i,j)
+             g3d_g(ngrid)%vmcl(i,j) = aux * g3d_g(ngrid)%vmcl(i,j)
+
+             vt3da(:,i,j)=  g3d_g(ngrid)%umcl(i,j) * dtlt_local  !mean cloud layer U-wind with cold pool propagation
+             vt3db(:,i,j)=  g3d_g(ngrid)%vmcl(i,j) * dtlt_local  !mean cloud layer V-wind with cold pool propagation
+           
+            end do
+          end do       
+         endif 
+
+
+         !-- add the influence of ambient flow to the MCL wind
+         !-- 'factor' = 0.62 is suggested by Simpson and Britter (1980) to add the cold pool velocity 
+         !-- the to ambient wind (see page 346 Storm and Cloud Dynamics, Cotton et al. 2nd edition)
+         if( add_coldpool_prop == 3 ) then
+          k_amb_wind = 2
+          do j = 1,myp
+            do i = 1,mxp
+           
+             MCL_speed= sqrt( (g3d_g(ngrid)%umcl(i,j))**2 + (g3d_g(ngrid)%vmcl(i,j))**2 )
+             aux =  (MCL_speed + g3d_g(ngrid)%vcpool(i,j))/(MCL_speed+1.e-6)
+             g3d_g(ngrid)%umcl(i,j) = aux * g3d_g(ngrid)%umcl(i,j)
+             g3d_g(ngrid)%vmcl(i,j) = aux * g3d_g(ngrid)%vmcl(i,j)
+
+             !-- including the influence of ambient flow to the MCL wind
+
+             g3d_g(ngrid)%umcl(i,j) = g3d_g(ngrid)%umcl(i,j) + factor*basic_g(ngrid)%uc(k_amb_wind,i,j)
+             g3d_g(ngrid)%vmcl(i,j) = g3d_g(ngrid)%vmcl(i,j) + factor*basic_g(ngrid)%vc(k_amb_wind,i,j)
+
+             !-- 
+             vt3da(:,i,j)=  g3d_g(ngrid)%umcl(i,j) * dtlt_local  !mean cloud layer U-wind with cold pool propagation
+             vt3db(:,i,j)=  g3d_g(ngrid)%vmcl(i,j) * dtlt_local  !mean cloud layer V-wind with cold pool propagation
+           
+            end do
+          end do       
+         endif 
+
+
+      endif      
+
+    call fa_preptc(mzp,mxp,myp  &
+        ,vt3da      ,vt3db        &
+        ,vt3dc      ,vt3dd        &
+        ,vt3de      ,vt3df        &
+        ,vt3dh      ,vt3di        &
+        ,vt3dj      ,vt3dk        &
+        ,mynum                    )
+
+    !---- 2-d advection plus 3 or 2-d diffusion
+    do n=1,nsubsteps
+
+         !---- tracer to be advected 
+         scr1(1:mzp,1:mxp,1:myp) = g3d_g(ngrid)%cnv_tr(1:mzp,1:mxp,1:myp)
+
+         ! output: scr1,vt3dg
+         call fa_xc(mzp,mxp,myp,ia,iz,1,myp,g3d_g(ngrid)%cnv_tr,scr1,vt3da,vt3dd,vt3dg,vt3dh,vt3di,mynum)
+
+         ! input: scalarp, scr1,vt3db,vt3de,vt3dj,vt3di
+         ! output: scr1,vt3dg
+         if (jdim .eq. 1)  &
+         call fa_yc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%cnv_tr,scr1,vt3db,vt3de,vt3dg,vt3dj,vt3di,jdim,mynum)
+       
+         ! input: scalarp, scr1,vt3dc,vt3df,vt3dk, vctr1,vctr2
+         ! output: scr1,vt3dg
+         if(vert_adv) &
+         call fa_zc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%cnv_tr,scr1,vt3dc,vt3df,vt3dg,vt3dk,vctr1,vctr2,mynum)
+         
+         !--- get the adection tendency, if desired
+         !call advtndc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%cnv_tr,scr1,dummy,dtlt,mynum)
+
+         !----------------------
+         !Aproveitando as rotinas de comunicação criadas para passar o Halo quando em uso da RK
+         !para comunicar o scr1 aos demais processadores
+         !if (mynum==1) then 
+         !  scr1(5,25,25)=8.8
+         !    write(88,*) scr1(5,25,25);call flush(88)
+         !endif
+         !if (mynum==2) then 
+         !  scr1(5,1,25)=5.5
+         !  write(89,*) scr1(5,1,25);call flush(89)
+         !endif
+         !----------------------
+        
+         !--- apply 3, 2 or 1-d diffusion
+         if(add_coldpool_diff >= 1) then 
+       
+           !scr1 = scalar to be applied 3-D, 2-D or 1-D diffusion
+           scalart = 0. 
+           sfcflx  = 0.
+          
+           call sclr_diffusion(add_coldpool_diff, mzp, mxp, myp, ia, iz, ja, jz, dtlt,dzm      &
+                              ,dzt,grid_g(ngrid)%rtgt,scr1, scalart, sfcflx, basic_g(ngrid)%dn0 &  
+                              ,turb_g(ngrid)%vkh, turb_g(ngrid)%hkm,xkhkm(ngrid)                )
+
+           !--- update with the diffusion process
+           scr1 (:,:,:)= scr1(:,:,:)+scalart(:,:,:)*dtlt
+         endif
+         
+         !--- avoid neg scalar
+         where(scr1 < 0.)  scr1 = 0.0
+
+         !--- parallel communication 
+         if (.not. singleProcRun .and. n < nsubsteps) call commHaloAcou(scr1,mxp,myp,mzp,myNum,'scr1')
+        
+         !--- updated tracer CNV_TR = CNV_TR + ADV * dtlt + DIFF * dtlt
+         g3d_g(ngrid)%cnv_tr = scr1
+
+     enddo
+
+     if(use_gustiness==1) then
+
+      !--- water vapor mixing ratio
+      scr1(1:mzp,1:mxp,1:myp) = g3d_g(ngrid)%qexcp(1:mzp,1:mxp,1:myp)
+
+      do n=1,nsubsteps
+
+         ! output: scr1,vt3dg
+         call fa_xc(mzp,mxp,myp,ia,iz,1,myp,g3d_g(ngrid)%qexcp,scr1,vt3da,vt3dd,vt3dg,vt3dh,vt3di,mynum)
+
+         ! input: scalarp, scr1,vt3db,vt3de,vt3dj,vt3di
+         ! output: scr1,vt3dg
+         if (jdim .eq. 1)  &
+         call fa_yc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%qexcp,scr1,vt3db,vt3de,vt3dg,vt3dj,vt3di,jdim,mynum)
+       
+         ! input: scalarp, scr1,vt3dc,vt3df,vt3dk, vctr1,vctr2
+         ! output: scr1,vt3dg
+         if(vert_adv) &
+         call fa_zc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%qexcp,scr1,vt3dc,vt3df,vt3dg,vt3dk,vctr1,vctr2,mynum)
+
+         where(scr1 < 0.)  scr1 = 0.0
+         
+         if (.not. singleProcRun .and. n < nsubsteps) then
+           call commHaloAcou(scr1,mxp,myp,mzp,myNum,'scr1')
+         endif
+         
+         !--- updated tracer CNV_TR = CNV_TR + ADV * dtlt
+         g3d_g(ngrid)%qexcp = scr1
+       
+      enddo
+      
+      !--- moist static energy
+      scr1(1:mzp,1:mxp,1:myp) = g3d_g(ngrid)%hexcp(1:mzp,1:mxp,1:myp)
+
+      do n=1,nsubsteps
+
+         ! output: scr1,vt3dg
+         call fa_xc(mzp,mxp,myp,ia,iz,1,myp,g3d_g(ngrid)%hexcp,scr1,vt3da,vt3dd,vt3dg,vt3dh,vt3di,mynum)
+
+         ! input: scalarp, scr1,vt3db,vt3de,vt3dj,vt3di
+         ! output: scr1,vt3dg
+         if (jdim .eq. 1)  &
+         call fa_yc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%hexcp,scr1,vt3db,vt3de,vt3dg,vt3dj,vt3di,jdim,mynum)
+       
+         ! input: scalarp, scr1,vt3dc,vt3df,vt3dk, vctr1,vctr2
+         ! output: scr1,vt3dg
+         if(vert_adv) &
+         call fa_zc(mzp,mxp,myp,ia,iz,ja,jz,g3d_g(ngrid)%hexcp,scr1,vt3dc,vt3df,vt3dg,vt3dk,vctr1,vctr2,mynum)
+
+         where(scr1 < 0.)  scr1 = 0.0
+         
+         if (.not. singleProcRun .and. n < nsubsteps) then
+           call commHaloAcou(scr1,mxp,myp,mzp,myNum,'scr1')
+         endif
+         
+         !--- updated tracer CNV_TR = CNV_TR + ADV * dtlt
+         g3d_g(ngrid)%hexcp = scr1
+       
+      enddo
+  endif ! - if gustiness = 1
+
+
+end subroutine adv_convection_tracer
+
+!---------------------------------------------------------------
+subroutine sclr_diffusion(add_coldpool_diff, m1, m2, m3, ia, iz, ja, jz, dtlt,dzm,dzt &
+                          ,rtgt, scp, sct, sfcflx, dn0, vkkh, hkkh, xkhkm )
+
+  implicit none
+  integer  , intent(in) :: m1, m2, m3, ia, iz, ja, jz,add_coldpool_diff
+  real     , intent(in) :: dtlt,xkhkm
+  real     , intent(in) :: scp(m1,m2,m3), vkkh(m1,m2,m3), hkkh(m1,m2,m3),dn0(m1,m2,m3)
+
+  real, intent(in)    :: dzm(m1), dzt(m1)
+  real, intent(in)    :: sfcflx(m2,m3),rtgt(m2,m3)
+ 
+  real, intent(inout) :: sct(m1,m2,m3)
+
+  real                :: vt3da(m1,m2,m3), vt3db(m1,m2,m3),  &
+       vt3dc(m1,m2,m3), vt3df(m1,m2,m3), vt3dg(m1,m2,m3), vt3dj(m1,m2,m3), &
+       vt3dk(m1,m2,m3), vt3do(m1,m2,m3), dn03i(m1,m2,m3), vt3dl(m1,m2,m3), &
+       vt3dm(m1,m2,m3)
+ 
+  real :: vt2db(m2,m3)
+
+  real, dimension(m1) :: vctr1  
+       
+  integer :: i, j, k, ihorgrad,jd
+  real :: c1
+  real :: dtlti
+
+  !          compute vertical diffusion matrix coefficients for scalars
+
+  JD=1
+  c1 = 0.5*dtlt
+  !ihorgrad=0  !no horizontal difusion
+  !nstbot=1
+  !nsttop=1
+  
+  !vt3df=0.! check necessidade
+  !vt3dg=0.! check necessidade
+
+   
+     do j=ja,jz
+        do i=ia,iz
+           do k=1,m1-1
+              vctr1(k) = dzm(k)*(vkkh(k,i,j) + vkkh(k+1,i,j))
+           enddo
+ 
+           do k=2,m1-1
+              
+              vt3dj(k,i,j) = -c1 * dzt(k) * vctr1(k-1)
+              vt3dk(k,i,j) = -c1 * dzt(k) * vctr1(k)
+             
+              vt3do(k,i,j) = dn0(k,i,j) - vt3dj(k,i,j) - vt3dk(k,i,j)
+              dn03i(k,i,j) = 1./dn0(k,i,j)
+
+           enddo
+        enddo
+     enddo
+
+!     if (nstbot==1 .and. nsttop==1) then
+        do j=ja,jz
+           do i=ia,iz
+              vt3dj(2,i,j) = 0.
+              vt3do(2,i,j) = dn0(2,i,j) - vt3dk(2,i,j)
+              vt3dk(m1-1,i,j) = 0.
+              vt3do(m1-1,i,j) = dn0(m1-1,i,j) - vt3dj(m1-1,i,j)
+
+              vt2db(i,j) = 1./vt3do(2,i,j)
+              vt3dl(2,i,j) = vt3dk(2,i,j)*vt2db(i,j)
+           enddo
+        enddo
+!     elseif (nstbot==1) then
+!        do j=ja,jz
+!           do i=ia,iz
+!              vt3dj(2,i,j)    = 0.
+!              vt3do(2,i,j)    = dn0(2,i,j) - vt3dk(2,i,j)
+!              vt3dk(m1-1,i,j) = 0.
+!
+!         ! Bob (10/27/00):  Evaluate ci2i, cjp1, and cji terms here
+!         ! (vt2db, vt3dl, vt3dm) for new tridiff2.
+!         ! With this, no longer need to pass ci or cip1 (vt3do, vt3dk)
+!         ! to tridiff2.
+!
+!         vt2db(i,j)      = 1./vt3do(2,i,j)
+!         vt3dl(2,i,j)    = vt3dk(2,i,j)*vt2db(i,j)
+!      enddo
+!   enddo
+!     elseif (nsttop==1) then
+!   do j=ja,jz
+!      do i=ia,iz
+!         vt3dj(2,i,j)    = 0.
+!         vt3dk(m1-1,i,j) = 0.
+!         vt3do(m1-1,i,j) = dn0(m1-1,i,j) - vt3dj(m1-1,i,j)
+!
+!         ! Bob (10/27/00):  Evaluate ci2i, cjp1, and cji terms here
+!         ! (vt2db, vt3dl, vt3dm) for new tridiff2.
+!         ! With this, no longer need to pass ci or cip1 (vt3do, vt3dk)
+!         ! to tridiff2.
+!
+!         vt2db(i,j)      = 1./vt3do(2,i,j)
+!         vt3dl(2,i,j)    = vt3dk(2,i,j)*vt2db(i,j)
+!      enddo
+!   enddo
+!     else
+!   do j=ja,jz
+!      do i=ia,iz
+!         vt3dj(2,i,j)    = 0.
+!         vt3dk(m1-1,i,j) = 0.
+!
+!         ! Bob (10/27/00):  Evaluate ci2i, cjp1, and cji terms here
+!         ! (vt2db, vt3dl, vt3dm) for new tridiff2.
+!         ! With this, no longer need to pass ci or cip1 (vt3do, vt3dk)
+!         ! to tridiff2.
+!
+!         vt2db(i,j)      = 1./vt3do(2,i,j)
+!         vt3dl(2,i,j)    = vt3dk(2,i,j)*vt2db(i,j)
+!      enddo
+!   enddo
+!     endif
+!
+     do j=ja,jz
+        do i=ia,iz
+           do k=3,m1-1
+              vt3dm(k,i,j) = 1./(vt3do(k,i,j) - vt3dj(k,i,j)*vt3dl(k-1,i,j))
+              vt3dl(k,i,j) = vt3dk(k,i,j)*vt3dm(k,i,j)
+           enddo
+        enddo
+     enddo
+
+!  endif
+
+if (add_coldpool_diff >= 2) then 
+!------------------------- horizontal difusion------------------
+!     compute 2 horizontal scalar gradients needed for dscp/dt
+    call grad(m1, m2, m3,  1, iz, ja, jz, scp, vt3df, 'XDIR', 'TPNT')
+    call grad(m1, m2, m3, ia, iz,  1, jz, scp, vt3dg, 'YDIR', 'TPNT')
+!
+    do j=ja,jz
+      do i=1,iz
+       do k=1,m1-1
+          vt3df(k,i,j) = -vt3df(k,i,j)*0.5*(hkkh(k,i,j) + hkkh(k,i+1,j))* xkhkm
+       enddo
+      enddo
+    enddo
+
+    do j=1,jz
+      do i=ia,iz
+       do k=1,m1-1
+          vt3dg(k,i,j) = -vt3dg(k,i,j)*0.5*(hkkh(k,i,j) + hkkh(k,i,j+jd))* xkhkm
+       enddo
+      enddo
+    enddo
+!
+!       horizontal flux divergence for scalars
+    call divcart(m1, m2, m3, ia, iz, ja, jz, vt3df, vt3da, 'XDIR', 'UPNT')
+    call divcart(m1, m2, m3, ia, iz, ja, jz, vt3dg, vt3db, 'YDIR', 'VPNT')
+
+    do j=ja,jz
+      do i=ia,iz
+        do k=2,m1-1
+          sct(k,i,j) = sct(k,i,j)  - (vt3da(k,i,j) + vt3db(k,i,j))*dn03i(k,i,j)
+        enddo
+      enddo
+    enddo
+!---------------------------------------------------------------
+ endif 
+ 
+ if (add_coldpool_diff >= 1) then 
+!---------------------------------------------------------------
+  !  finish matrix coefficients for vertical diffusion
+
+   do j=ja,jz
+     do i=ia,iz
+        do k=2,m1-1
+           vt3dc(k,i,j) = scp(k,i,j)*dn0(k,i,j)  ! scalar being diffused
+        enddo
+   
+           vt3dc(2,i,j) = scp(2,i,j)*dn0(2,i,j) + & !surface fluxes
+                          sfcflx(i,j)*dtlt*dzt(2)/rtgt(i,j)
+
+          ! vt3dc(2,i,j) = max(0.,vt3dc(2,i,j))!positividade
+
+     enddo
+   enddo
+
+   do j=ja,jz
+     do i=ia,iz
+
+        vt3df(2,i,j) = vt3dc(2,i,j)*vt2db(i,j)
+
+        do k=3,m1-1
+           vt3df(k,i,j) = (vt3dc(k,i,j) - vt3dj(k,i,j)*vt3df(k-1,i,j))* &
+                vt3dm(k,i,j)
+        enddo
+
+        do k=m1-2,2,-1
+           vt3df(k,i,j) = vt3df(k,i,j) - vt3dl(k,i,j)*vt3df(k+1,i,j)
+        enddo
+
+     enddo
+   enddo
+
+   dtlti = 1.0/dtlt
+   do j=ja,jz
+     do i=ia,iz
+        do k=2,m1-1
+           sct(k,i,j) = sct(k,i,j) + vt3df(k,i,j)*dtlti - scp(k,i,j)*dtlti
+        enddo
+     enddo
+   enddo
+!--------------------------------------------------------------
+ endif
+end subroutine sclr_diffusion
+
+!------------------------------------------------------------------------------------
+subroutine sgs_coldpool_sfx_and_diff()
+
+   use cuparm_grell3, only: g3d_g
+   use mem_grid     , only: time,ng=>ngrid,dtlt, dyncore_flag,dzt,ztn
+   use node_mod     , only: mxp,myp,mzp ,ia,iz,ja,jz,mynum, nmachs
+   use mem_grid     , only: ngrid, nzpmax, grid_g, dtlt, if_adap, jdim, time, &
+                            zt, zm, dzm, dzt, hw4,itopo,npatch
+   use mem_basic    , only: basic_g
+   use mem_leaf     , only: leaf_vars, leaf_g 
+   use mem_turb     , only: turb_vars, turb_g , xkhkm
+
+   use convpar_gf_geos5, only: coldpool_start,tau_land_cp,tau_ocea_cp, use_gustiness &
+                              ,add_coldpool_diff
+
+   use mem_jules       , only: jules_g
+   use rconstants   
+   !use leaf_coms, only: timefac_sst, niter_leaf, niter_can, dtll, dtll_factor, &
+   !    dtlc_factor, dtlc, hcapcan, wcapcan, hcapveg, dtllohcc, dtllowcc, &
+   !    dtlcohcc, dtlcowcc, dtlcohcv, z0fac_water, snowrough, ups, vps, ths, rvs, &
+   !!    zts, pis, dens, prss, vels, gzotheta, tempk, snowfac, thetacan, &
+    !   vels_pat, rdi, pcpgl,fracliq
+
+   implicit none
+   include "i8.h"
+   integer ::  i,j,ip,niter_leaf, niter_can,k
+   real :: factor,snk,src,tau_cp
+   real                      :: ths,rvs,pis,dens,ups,vps,zts, gzotheta,prss,temps, dummy=0.&
+                               ,vels,patch_area,  dtll, dtll_factor,dtllohcc,vels_pat &
+                               ,dtlcohcc, dtlc_factor, dtlc, hcapcan , thetacan, can_rvap &
+                               ,ustar0,tstar0, rstar0,sflux_u,sflux_v, sflux_w, sflux_t, sflux_r &
+                               ,z0fac_water,vels_ratio
+   real, dimension (mxp,myp) :: ustar,tstar, rstar,patch_rough
+   real, dimension (mxp,myp) :: ths2,rvs2,pis2,dens2,ups2,vps2,zts2,vels1,vels_cp
+   real, dimension (mxp,myp,npatch) :: l_patch_rough
+   
+   real, dimension (mzp,mxp,myp) :: scalart,scalarp,scr1
+   real, dimension (mxp,myp)     :: sfcflx
+   
+   vels1=0.;vels_cp=0.
+   do j=ja,jz
+      do i=ia,iz
+       dens= (basic_g(ng)%dn0(1,i,j)   + basic_g(ng)%dn0(2,i,j)) * .5
+       ups = (basic_g(ng)%up (2,i-1,j) + basic_g(ng)%up(2,i,j) ) * .5
+       vps = (basic_g(ng)%vp (2,i,j-1) + basic_g(ng)%vp(2,i,j) ) * .5
+
+       vels1(i,j) = sqrt(ups ** 2 + vps ** 2) + 1.e-6
+
+       !--- include the cold-pool gust front effects on the surface fluxes
+       factor=  coldpool_start(g3d_g(ng)%CNV_TR(2,i,j))
+       
+       ups = (1.-factor)*ups+factor*g3d_g(ng)%umcl(i,j)
+       vps = (1.-factor)*vps+factor*g3d_g(ng)%vmcl(i,j)
+
+       vels_cp(i,j) = sqrt(ups ** 2 + vps ** 2)
+       
+       !print*,"LE",alvl* turb_g(ng)%sflux_r(i,j), alvl * ustar0*rstar0 * dens
+       !print*," H",   cp*turb_g(ng)%sflux_t(i,j),cp * sflux_t
+       
+       vels_ratio = vels_cp(i,j)/vels1(i,j)
+
+       !-- sensible heat flux K m/s
+       g3d_g(ng)%sgs_shf(i,j) = turb_g(ng)%sflux_t(i,j)*vels_ratio !*dens*cp   = H W/m2
+       
+       !-- latent heat flux
+       g3d_g(ng)%sgs_lhf(i,j) = turb_g(ng)%sflux_r(i,j)*vels_ratio !*dens*alvl = LE W/m2
+
+   enddo; enddo
+
+   if(use_gustiness  == 1) then
+        
+      tau_cp = 1.* tau_land_cp - (1.-1.)*tau_ocea_cp ! check latter 
+        
+      do j=ja,jz
+         do i=ia,iz
+             !-- apply the source term at surface
+
+             ! a) water vapor mixing ratio 
+             src= min(2000./alvl, (vels_cp(i,j)/vels1(i,j) - 1.) * turb_g(ng)%sflux_r(i,j)) &
+                    * dtlt *dzt(2)/grid_g(ng)%rtgt(i,j)
+             
+             g3d_g(ng)%qexcp(2,i,j) = g3d_g(ng)%qexcp(2,i,j) + src 
+                       
+
+             ! b) moist static energy (using hexcp array)
+             src = cp *  turb_g(ng)%sflux_t(i,j) +  alvl *  turb_g(ng)%sflux_r(i,j)
+             src = min (3000., src) * (vels_cp(i,j)/vels1(i,j) - 1.) 
+             src = src * dtlt *dzt(2)/grid_g(ng)%rtgt(i,j)
+
+             g3d_g(ng)%hexcp(2,i,j) = g3d_g(ng)%hexcp(2,i,j) + src 
+            
+
+            !-- apply the sink term at all column
+            !
+            do k = 1, mzp
+                snk= dtlt * abs(g3d_g(ng)%qexcp(k,i,j))/tau_cp
+                g3d_g(ng)%qexcp(k,i,j) = g3d_g(ng)%qexcp(k,i,j) - snk
+
+                snk= dtlt * abs(g3d_g(ng)%hexcp(k,i,j))/tau_cp
+                g3d_g(ng)%hexcp(k,i,j) = g3d_g(ng)%hexcp(k,i,j) - snk
+               
+            enddo
+         enddo
+      enddo
+
+      !--- apply the vertical diffusion term
+      !
+       if(add_coldpool_diff >= 1) then 
+       
+       do k =1,2
+          if(k==1) scalarp = g3d_g(ng)%qexcp ! scalar to be applied vert diffusion
+          if(k==2) scalarp = g3d_g(ng)%hexcp ! scalar to be applied vert diffusion
+          scalart = 0. 
+          sfcflx  = 0.
+
+          call sclr_diffusion(add_coldpool_diff, mzp, mxp, myp, ia, iz, ja, jz, dtlt,dzm,dzt   &
+                             ,grid_g(ng)%rtgt,scalarp, scalart, sfcflx                         &
+                            , basic_g(ng)%dn0,  turb_g(ng)%vkh , turb_g(ng)%hkm, xkhkm(ng) )
+
+          !--- update
+          if(k==1) g3d_g(ng)%qexcp (:,:,:)= g3d_g(ng)%qexcp (:,:,:)+scalart(:,:,:)*dtlt
+          if(k==2) g3d_g(ng)%hexcp (:,:,:)= g3d_g(ng)%hexcp (:,:,:)+scalart(:,:,:)*dtlt
+        enddo
+      endif
+   
+      !--- sanity check for q and MSE
+      where (g3d_g(ng)%qexcp < 0.          ) g3d_g(ng)%qexcp = 0.
+      where (g3d_g(ng)%qexcp > 20.e-3      ) g3d_g(ng)%qexcp = 20.e-3
+      where (g3d_g(ng)%hexcp < 0.          ) g3d_g(ng)%hexcp = 0.
+      where (g3d_g(ng)%hexcp > 25.e-3*alvl ) g3d_g(ng)%hexcp = 25.e-3*alvl
+
+   endif ! if gustiness == 1
+
+
+
+
+   !print*,"vels",maxval(abs(vels_cp)),maxval(abs(vels1)),minval(abs(vels_cp)), minval(abs(vels1))
+   !print*,"HLE ",maxval(abs(g3d_g(ng)%sgs_shf))*1.1*cp,maxval(abs(g3d_g(ng)%sgs_lhf))*1.1*alvl
+   !call flush(6)
+   return
+
+  !----- for future use-----------------------------------------------------------
+
+  !-------------- check this later 
+  ! Define leaf3 and canopy time-split timesteps here.  This ensures that leaf3
+  ! will not use a timestep longer than about 40 seconds, and canopy will not
+  ! use a timestep longer than about 15 seconds.  This allows values of
+  ! hcapcan = 2.e4, wcapcan = 2.e1, and hcapveg = 3.e4 as are now defined below.
+
+  niter_leaf  = max(1,nint(dtlt/40.+.4))
+  niter_can   = max(1,nint(dtll/15.+.4))
+  dtll_factor = 1. / float(niter_leaf)
+  dtll        = dtlt * dtll_factor
+  dtlc_factor = 1. / float(niter_can)
+  dtlc        = dtll * dtlc_factor
+  hcapcan = 2.0e4
+  dtlcohcc = dtlc / hcapcan
+  dtllohcc = dtll / hcapcan
+!----------------------------
+  dtll        = dtlt
+ 
+
+   !z0fac_water = .016 / g
+   ! Copy surface atmospheric variables into 2d arrays for input to leaf
+   call sfc_fields(mzp,mxp,myp,ia,iz,ja,jz,jdim                                     &
+          ,basic_g(ng)%theta(1,1,1) ,basic_g(ng)%rv (1,1,1) ,basic_g(ng)%up(1,1,1)  &
+          ,basic_g(ng)%vp   (1,1,1) ,basic_g(ng)%dn0(1,1,1) ,basic_g(ng)%pp(1,1,1)  &
+          ,basic_g(ng)%pi0  (1,1,1) ,grid_g (ng)%rtgt(1,1)  ,zt                     &
+          ,ths2,rvs2,ups2,vps2,pis2,dens2,zts2)    
+
+   do j=ja,jz
+      do i=ia,iz
+       ustar   (i,j) = 0.
+       tstar   (i,j) = 0.          
+       rstar   (i,j) = 0.
+       patch_rough(i,j) = 0.
+
+      ! For water surface (patch 1), compute surface saturation mixing ratio
+      ! and roughness length based on previous ustar.
+      ! For soil patches, compute roughness length based on vegetation and snow.
+
+      !leaf%ground_rsat(i,j,ip) = rslif(prss,tempk(mzg))
+       l_patch_rough(i,j,1) = max(z0fac_water * leaf_g(ng)%ustar(i,j,1) ** 2,.0001)
+
+         
+       l_patch_rough(i,j,2:npatch) = max(grid_g(ng)%topzo(i,j),leaf_g(ng)%soil_rough(i,j,2:npatch)  &
+                                                              ,leaf_g(ng)%veg_rough (i,j,2:npatch))  
+                        
+       ustar0=leaf_g(ng)%ustar (i,j,1)
+       tstar0=leaf_g(ng)%tstar (i,j,1)
+       rstar0=leaf_g(ng)%rstar (i,j,1)
+
+
+
+       do ip=1,npatch
+        ustar (i,j) = ustar (i,j) + leaf_g(ng)%ustar (i,j,ip)*leaf_g(ng)%patch_area(i,j,ip)
+        tstar (i,j) = tstar (i,j) + leaf_g(ng)%tstar (i,j,ip)*leaf_g(ng)%patch_area(i,j,ip)            
+        rstar (i,j) = rstar (i,j) + leaf_g(ng)%rstar (i,j,ip)*leaf_g(ng)%patch_area(i,j,ip)     
+        patch_rough(i,j) =patch_rough(i,j) +  l_patch_rough(i,j,ip)*leaf_g(ng)%patch_area(i,j,ip) 
+        !print*," rough=",ip,patch_rough(i,j) ,l_patch_rough(i,j,ip), leaf_g(ng)%patch_area(i,j,ip) 
+       enddo
+      
+       ups = ups2(i,j)
+       vps = vps2(i,j)
+       ths = ths2(i,j)
+       rvs = rvs2(i,j)
+       zts = zts2(i,j)
+       pis = pis2(i,j)
+       dens = dens2(i,j)
+       gzotheta = g * zts / ths
+       prss = pis ** cpor * p00
+       temps = ths * pis 
+   
+
+      !--- include the cold-pool gust front effects on the surface fluxes
+       factor=  coldpool_start(g3d_g(ng)%CNV_TR(2,i,j))
+       
+       ups = (1.-factor)*ups2(i,j)+factor*g3d_g(ng)%umcl(i,j)
+       vps = (1.-factor)*vps2(i,j)+factor*g3d_g(ng)%vmcl(i,j)
+
+       vels = sqrt(ups ** 2 + vps ** 2)
+       
+       patch_area = 1.
+
+!jules_g(ng)%u10mj(ia:iz,ja:jz)=sf_diag%u10m(:,:)
+!jules_g(ng)%v10mj(ia:iz,ja:jz)=sf_diag%v10m(:,:)
+!jules_g(ng)%t2mj(ia:iz,ja:jz)=sf_diag%t1p5m(:,:)
+!jules_g(ng)%rv2mj(ia:iz,ja:jz)=sf_diag%q1p5m(:,:)/(1-sf_diag%q1p5m(:,:))
+
+       thetacan = jules_g(ng)%t2mj(i,j)/pis
+       can_rvap = jules_g(ng)%rv2mj(i,j)
+
+     !  call stars(ustar(i,j),tstar(i,j) ,rstar(i,j)     &
+     !            ,ths,rvs,thetacan,can_rvap             &
+     !            ,zts,patch_rough(i,j),patch_area       &
+     !            ,vels,vels_pat,vonk,dummy,dens,dtll,dummy )
+
+!print*,"us",ustar(i,j),ustar0,tstar(i,j),tstar0,ths-thetacan,can_rvap,rvs
+
+       sflux_u = 0.; sflux_v = 0.;  sflux_w = 0.;  sflux_t = 0.; sflux_r = 0.
+       call sfclmcv(i,j,ustar(i,j), tstar(i,j),                  &
+           rstar(i,j), vels, vels_pat, ups, vps, gzotheta,       &
+           patch_area, sflux_u,sflux_v, sflux_w, sflux_t, sflux_r)
+
+       sflux_u = sflux_u * dens
+       sflux_v = sflux_v * dens 
+       sflux_w = sflux_w * dens
+       sflux_t = sflux_t * dens
+       sflux_r = sflux_r * dens 
+      
+       print*,"LE",alvl* turb_g(ng)%sflux_r(i,j), alvl * ustar0*rstar0 * dens
+       !print*," H",   cp*turb_g(ng)%sflux_t(i,j),cp * sflux_t
+
+       g3d_g(ng)%sgs_shf(i,j) = cp   * ustar0*tstar0 * dens !sflux_t
+       g3d_g(ng)%sgs_lhf(i,j) = alvl * ustar0*rstar0 * dens !sflux_r
+
+
+   enddo; enddo
+!stop 3
+
+end subroutine sgs_coldpool_sfx_and_diff
+!-----------------------------------------------------------------------------------------
