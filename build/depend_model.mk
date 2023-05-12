@@ -580,7 +580,7 @@ rtimh_rk.o : $(MODEL)/rtimh_rk.F90 rtimh.o mem_basic.o mem_cuparm.o \
 	ChemSourcesDriver.o ChemDryDepDriver.o chemistry.o ModTimeStamp.o ModGrid.o \
 	raco.o rthrm.o module_rams_microphysics_2M.o mic_thompson_driver.o\
    seasalt.o MatrixDriver.o rtm_driver.o radvc_rk.o modIau.o leaf3_ocean_only.o \
-	mic_wsm_driver.o $(JULES_OBJ_SFCLYR) \
+	mic_wsm_driver.o $(JULES_OBJ_SFCLYR) modSfire.o \
 	ModMessageSet.o $(UTILS_INCS)/i8.h $(UTILS_INCS)/tsNames.h
 	@cp -f $< $(<F:.f90=.f90)
 	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
@@ -2581,4 +2581,6 @@ modPrintInitial.o : $(INIT)/modPrintInitial.F90 dump.o
 	@mv -f $(<F:.f90=.f90) ../doc/src
 
 include jules_depend_model.mk
+
+include sfire_depend_model.mk
 

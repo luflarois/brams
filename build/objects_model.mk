@@ -820,7 +820,26 @@ OBJ_MOD = \
    woodprod.o \
    yomhook.o \
    zenith_mod.o \
-   modTimeLineFRN.o
+   modTimeLineFRN.o \
+   module_fr_sfire_model.o \
+   module_fr_sfire_util.o \
+   module_fr_sfire_phys.o \
+   module_fr_sfire_core.o \
+   module_fr_sfire_atm.o \
+   module_fr_sfire_driver.o \
+   byteswap.o \
+   module_state_description.o \
+   module_domain_type.o \
+   read_namelist_fire.o \
+   module_configure.o \
+   module_machine.o \
+   module_tiles.o \
+   module_model_constants.o \
+   module_driver_constants.o \
+   mem_sfire.o \
+   read_namelist_fire.o \
+   module_fr_sfire_driver_brams.o \
+	modSfire.o
 
 
 	JULES_OBJ_SFCLYR = sfclyr_jules.o
