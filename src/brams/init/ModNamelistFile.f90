@@ -313,6 +313,7 @@ module ModNamelistFile
      integer :: lsflg
      integer :: nfpt
      real :: distim
+     integer :: sfire
      integer :: iswrtyp
      integer :: ilwrtyp
      character(LEN=f_name_length) :: raddatfn
@@ -955,6 +956,7 @@ contains
     integer :: lsflg
     integer :: nfpt
     real :: distim
+    integer :: sfire
     integer :: iswrtyp
     integer :: ilwrtyp
     character(LEN=f_name_length) :: raddatfn
@@ -1026,7 +1028,7 @@ contains
     INTEGER            :: GhostZoneLength
 
     namelist /MODEL_OPTIONS/ &
-         iswrtyp, ilwrtyp,radfrq, nnqparm, closure_type,       &
+         sfire, iswrtyp, ilwrtyp,radfrq, nnqparm, closure_type,       &
          nnshcu, confrq, shcufrq,  isfcl, isfcl_ocean, soil_moist_fail, &
          usdata_in, usmodel_in, mcphys_type, level
 
@@ -1519,6 +1521,7 @@ contains
     lsflg   	      = 0
     nfpt    	      = 0
     distim  	      = 400.
+    sfire            = 0
     iswrtyp 	      = 1
     ilwrtyp 	      = 1
     raddatfn	      = "./carma/rad_param.data" ! 2
@@ -2374,6 +2377,7 @@ contains
        write(*,"(a)") h//"**(ERROR)** reading section MODEL_OPTIONS "//&
             &"of namelist file "//trim(oneNamelistFile%fileName)
        write(*,"(a)") h//" compare values read with file contents:"
+       write (*, *) "sfire=",sfire
        write (*, *) "iswrtyp=",iswrtyp
        write (*, *) "ilwrtyp=",ilwrtyp
        write (*, *) "radfrq=",radfrq
@@ -2392,6 +2396,7 @@ contains
        call fatal_error(h//" reading namelist")
     else
  !--(DMK-CCATT-INI)-----------------------------------------------------------
+       oneNamelistFile%sfire = sfire
        oneNamelistFile%iswrtyp=iswrtyp
        oneNamelistFile%ilwrtyp=ilwrtyp
        oneNamelistFile%radfrq=radfrq
@@ -4190,6 +4195,8 @@ contains
          oneParallelEnvironment%master_num)
     call parf_bcast(oneNamelistFile%distim,&
          oneParallelEnvironment%master_num)
+    call parf_bcast(oneNamelistFile%sfire,&
+         oneParallelEnvironment%master_num)    
     call parf_bcast(oneNamelistFile%iswrtyp,&
          oneParallelEnvironment%master_num)
     call parf_bcast(oneNamelistFile%ilwrtyp,&

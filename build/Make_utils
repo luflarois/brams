@@ -20,7 +20,7 @@ HDF5DIR =
 CHEM	       = RELACS_TUV
 
 CCOMP	       = gcc
-CPCOMP	       = /opt/gnu/bin/mpicc
+CPCOMP	       = /opt/gnu8/bin/mpicc
 FCOMP	       = gfortran
 FPCOMP	       = /opt/gnu/bin/mpif90
 

@@ -19,7 +19,7 @@ COLOR        = @COLOR@
 MATRIXLEV	   = 1
 
 CCOMP	       = gcc
-CPCOMP	       = /opt/gnu/bin/mpicc
+CPCOMP	       = /opt/gnu8/bin/mpicc
 FCOMP	       = gfortran
 FPCOMP	       = /opt/gnu/bin/mpif90
 
@@ -167,7 +167,7 @@ endif
 ifeq ($(notdir $(FCOMP)),gfortran)
 JULES_DEFS = $(JULES_DEFS0) GNU_FORTRAN
 #FC_FLAGS=-O3 -ffree-form -ffree-line-length-none -fbacktrace -g -fcheck=bounds -fcheck=all -finit-real=nan # -Wall -ffpe-trap=invalid,zero
-FC_FLAGS=-ffree-form -ffree-line-length-none -fbacktrace -g -fno-range-check -fcheck=bounds  -ffpe-trap=invalid,zero -fcheck=all
+FC_FLAGS=-ffree-form -ffree-line-length-none -fbacktrace -g -fno-range-check
 
 ifeq ($(GCC_VER_GTE10),)
      FC_FLAGS +=-fallow-argument-mismatch
@@ -190,8 +190,6 @@ LOADERFLAGS=$(FCFLAGS)
 FPP_INC=-I
 FPP_FDEF=-D
 INCLUDE_DIR=$(JULES_DIR)/preprocess/include/
-
-SFIRE_INC = -I$(SFIRE)
 
 #########################################################
 ## Build pre-processor variable definitions for jules  ##
@@ -221,15 +219,15 @@ FPP_INC_PATH=$(FPP_INC)$(INCLUDE_DIR)
 
 ifeq ($(NETCDFFDIR),)
 ifeq ($(WGRIBDIR),)
-INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) $(SFIRE_INC)
+INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH)
 else
-INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(WGRIBDIR)/include $(SFIRE_INC)
+INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(WGRIBDIR)/include
 endif
 else
 ifeq ($(WGRIBDIR),)
-INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(NETCDFFDIR)/include $(SFIRE_INC)
+INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(NETCDFFDIR)/include
 else
-INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(WGRIBDIR)/include -I$(NETCDFFDIR)/include $(SFIRE_INC)
+INCLUDES  = -I$(UTILS_INCS) $(JULES_INC) $(HDF5_INC) $(FPP_INC_PATH) -I$(WGRIBDIR)/include -I$(NETCDFFDIR)/include
 endif
 endif
 

@@ -495,9 +495,10 @@ CONTAINS
       srctime1	 =   src_times(next_srcfile(ng)-1,1)
       srctime2	 =   src_times(next_srcfile(ng)  ,1)
     END IF
-    
+    if (mchnum == master_num) print *, mchnum,'LFR-DBG - Comunicando srctime2 = ',srctime2; call flush(6)
     !CALL Broadcast(srctime1, master_num, "srctime1") !LFR
     CALL Broadcast(srctime2, master_num, "srctime2") 
+    print *, mchnum, 'LFR-DBG - recebido srctime2 = ',srctime2, src_times(next_srcfile(ng)  ,1); call flush(6)
     !******* debug *****
     !write(*,fmt='(I3.3,1X,A,F12.6,1X,F12.6)') &
     !    mchnum,'LFR:srctime1 and 2',srctime1,srctime2

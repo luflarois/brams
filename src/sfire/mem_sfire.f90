@@ -1,10 +1,13 @@
 MODULE mem_sfire
   USE module_domain_type
   USE ModNamelistsfireFile 
+  use ModNamelistFile, only: namelistFile
     
   implicit none
   TYPE(domain) :: sfire_g
   TYPE(grid_config_rec_type), pointer :: config_flags => null()
+
+  integer :: sfire
   
 
 CONTAINS
@@ -434,5 +437,13 @@ CONTAINS
     sfire%fmep(:, :, :)= 0.  !!!!INTRODUZIDO POR ISILDA CUNHA MENEZES 
 
   END SUBROUTINE zero_sfire_brams
+
+  subroutine StoreNamelistFileAtMem_sfire(oneNamelistFile)
+    implicit none
+    type(namelistFile), pointer :: oneNamelistFile
+    sfire = oneNamelistFile%sfire
+
+  end subroutine StoreNamelistFileAtMem_sfire
+
 
 END MODULE mem_sfire

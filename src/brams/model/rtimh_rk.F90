@@ -229,6 +229,8 @@ subroutine timestep_rk(OneGrid,oneNamelistFile)
 
   use sfireMod, only: sfclyr_sfire
 
+  use mem_sfire, only: sfire
+
   implicit none
 
   type(Grid), pointer :: OneGrid
@@ -758,7 +760,7 @@ subroutine timestep_rk(OneGrid,oneNamelistFile)
   endif
   !=====================================================
 
-  call sfclyr_sfire(mzp,mxp,myp,ia,iz,ja,jz)
+  if (sfire > 0) call sfclyr_sfire(mzp,mxp,myp,ia,iz,ja,jz)
 
   !=====================================================
 

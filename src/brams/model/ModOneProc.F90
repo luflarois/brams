@@ -551,6 +551,9 @@ module ModOneProc
     readSites, &
     createSitesFile
 
+ use mem_sfire, only: &
+    StoreNamelistFileAtMem_sfire
+
 
   implicit none
   private
@@ -683,6 +686,7 @@ contains
     call StoreNamelistFileAtMem_leaf(oneNamelistFile)
     call StoreNamelistFileAtMem_oda(oneNamelistFile)
     call StoreNamelistFileAtMem_radiate(oneNamelistFile)
+    call StoreNamelistFileAtMem_sfire(oneNamelistFile)
     call StoreNamelistFileAtSoilMoisture(oneNamelistFile)
     call StoreNamelistFileAtMem_turb(oneNamelistFile)
     call StoreNamelistFileAtMem_varinit(oneNamelistFile)
@@ -2547,7 +2551,9 @@ contains
           !time para leitura dos mapas de queimadas
           !frqqueim=24.*3600.
           !inicializando as fontes as 00UTC
-          if ( mod(timemf + 0.01*itime1*3600.,srctime2) .lt. dtlongn(1) .and. &
+          !print *,'LFR-DBG: ',timemf,itime1,srctime2,dtlongn(1)
+          !if ( mod(timemf + 0.01*itime1*3600.,srctime2) .lt. dtlongn(1) .and. & !LFR !!!!!!!!!!
+          if ( mod(timemf + 0.01*itime1*3600.,86400.0) .lt. dtlongn(1) .and. &
                timemf.ge.0.*3600.) then
              !       if (timemf>=srctime2 .and. timemf<timmax) then
              isendbackflg = 1
