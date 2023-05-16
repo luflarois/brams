@@ -327,7 +327,7 @@ contains
          !print *,'LFR-DBG 02: se for 1 timestep, inicialização: ', istp; call flush(6)
          if ((istp - 1) == 0) then
 
-            !print *, "DEBUG - FIST ISTP ", istp
+            print *, "LFR-DBG - FIST ISTP ", istp, 'Inicializando...' 
             call GlobalLatLonGrid(temp_glon, temp_glat)
 
             !print *, " Criando namelist do SFIRE"
@@ -509,7 +509,7 @@ contains
 
          ! Comentando apenas para testar a inicializacao do modulo e compilacao
          step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
-         !print *,'LFR-DBG 13: iniciando a integração do sfire, step',step_isil; call flush(6)
+         print *,'LFR-DBG 13: iniciando a integração do sfire, step',step_isil, 'time: ',time; call flush(6)
 
          call sfire_driver_em_step(sfire_g, config_flags, time, step_isil)
 
@@ -582,6 +582,11 @@ contains
 
                temp_sflux_t(i, j) = temp_sflux_t(i, j)
                temp_sflux_r(i, j) = temp_sflux_r(i, j)
+               !LFR-DEB beg
+               if(istp>5) then
+                  write (78,*) i,j,temp_sflux_t(i, j),hf(i, j),ch(i, j)
+               endif
+               !LFR-DEB end
             end do
          end do
          do j = config_flags%jps, config_flags%jpe
@@ -595,6 +600,8 @@ contains
 
             end do
          end do
+
+
          ! print*,'DEBUG :: -----------------'
          ! print*,'jules'
          ! print*,temp_sflux_t
@@ -932,6 +939,7 @@ contains
       write (dummy_str, "(a,i0,a,i0,a4)") "_", nnyp(1), "_", nnxp(1), ".bin"
       filename = trim(filename)//trim(adjustl(dummy_str))
 
+      print *,'LFR-DBG: filename nfuel: ',filename
       inquire (file=filename, exist=file_exists)
       if (file_exists) then
          print *, "Lendo o ficheiro ", filename
@@ -943,7 +951,16 @@ contains
                access='stream', form='unformatted', action='read')
 
          read (b) ((nfuel_cat(i, j), i=1, nnxp(1)), j=1, nnyp(1))
+
          close (b)
+         
+         !LFR-DBG - beg
+         do i=1,nnxp(1)
+            do j=1,nnyp(1)
+               write (88,*),i,j,nfuel_cat(i, j)
+            enddo
+         enddo
+         !LBR-DBG - end
 
       else
          print *, "Nao existe o ficheiro ", filename

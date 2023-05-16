@@ -257,6 +257,12 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     real :: fire_atm_feedback
     integer :: chem_opt
     integer :: nfmc
+    integer :: fire_ignition_clamp
+    integer :: fire_update_fuel_frac
+    integer :: fndwi_from_ndwi
+    integer :: kfmc_ndwi
+    integer :: fire_can_top_read
+    integer :: sfire_upwinding
 
    namelist /FIRE_DEFAULT/                                        &
          dx,dy,dt,tracer_opt,cen_lat,cen_lon,restart,sr_x,sr_y, &
@@ -292,7 +298,8 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
          fire_hfx_radius1,fire_hfx_start_x1,fire_hfx_end_x1, &
          fire_hfx_start_lat1,fire_hfx_end_lat1,fire_hfx_start_y1, &
          fire_hfx_end_y1,fire_hfx_start_lon1,fire_hfx_end_lon1, &
-         chem_opt,nfmc
+         chem_opt,nfmc,fire_ignition_clamp,fire_update_fuel_frac,&
+         fndwi_from_ndwi,kfmc_ndwi,fire_can_top_read,sfire_upwinding
 
 
      namelist /FIRE_SIMUL_INFO/ &
@@ -406,7 +413,13 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     fire_hfx_end_lon1                   = 0.
     chem_opt                            = 0
     nfmc                                = 5
-    
+    fire_ignition_clamp                 = 0
+    fire_update_fuel_frac               = 1
+    fndwi_from_ndwi                     = 1
+    kfmc_ndwi                           = 1
+    fire_can_top_read                   = 1
+    sfire_upwinding                     = 3
+
     !FIRE_SIMUL_INFO
  
     ifire                               = 2 
@@ -580,6 +593,12 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(*,*) "fire_hfx_end_lon1=",fire_hfx_end_lon1
        write(*,*) "chem_opt=",chem_opt
        write(*,*) "nfmc=",nfmc
+       write(*,*) "fire_ignition_clamp=",fire_ignition_clamp
+       write(*,*) "fire_update_fuel_frac=",fire_update_fuel_frac
+       write(*,*) "fndwi_from_ndwi=",fndwi_from_ndwi
+       write(*,*) "kfmc_ndwi=",kfmc_ndwi
+       write(*,*) "fire_can_top_read=",fire_can_top_read
+       write(*,*) "sfire_upwinding=",sfire_upwinding
 
       ! call fatal_error(h//" reading namelist")
     else
@@ -673,6 +692,12 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
      oneNamelistFile%fire_hfx_end_lon1 = fire_hfx_end_lon1
      oneNamelistFile%chem_opt = chem_opt
      oneNamelistFile%nfmc = nfmc
+     oneNamelistFile%fire_ignition_clamp = fire_ignition_clamp
+     oneNamelistFile%fire_update_fuel_frac = fire_update_fuel_frac
+     oneNamelistFile%fndwi_from_ndwi = fndwi_from_ndwi
+     oneNamelistFile%kfmc_ndwi = kfmc_ndwi
+     oneNamelistFile%fire_can_top_read = fire_can_top_read
+     oneNamelistFile%sfire_upwinding = sfire_upwinding
 
     end if
 
@@ -924,6 +949,12 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     real :: fire_atm_feedback
     integer :: chem_opt
     integer :: nfmc
+    integer :: fire_ignition_clamp
+    integer :: fire_update_fuel_frac
+    integer :: fndwi_from_ndwi
+    integer :: kfmc_ndwi
+    integer :: fire_can_top_read
+    integer :: sfire_upwinding
     integer :: ng
     open(18, file='copy_RAMSIN_FIRE.dat', action='write', form='formatted')
 
@@ -1054,7 +1085,13 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(18,*) "fire_hfx_end_lon1=",oneNamelistFile%fire_hfx_end_lon1
        write(18,*) "chem_opt=",oneNamelistFile%chem_opt
        write(18,*) "nfmc=",oneNamelistFile%nfmc
-
+       write(18,*) "fire_ignition_clamp=",oneNamelistFile%fire_ignition_clamp
+       write(18,*)"fire_update_fuel_frac=",&
+       oneNamelistFile%fire_update_fuel_frac
+       write(18,*) "fndwi_from_ndwi=",oneNamelistFile%fndwi_from_ndwi
+       write(18,*) "kfmc_ndwi=",oneNamelistFile%kfmc_ndwi
+       write(18,*) "fire_can_top_read=",oneNamelistFile%fire_can_top_read
+       write(18,*) "sfire_upwinding=",oneNamelistFile%sfire_upwinding
 
 
 

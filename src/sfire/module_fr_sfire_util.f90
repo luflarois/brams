@@ -17,7 +17,8 @@ module module_fr_sfire_util
       fire_advection = 0, &
       fire_wind_log_interp = 4, &
       fire_use_windrf = 0, &
-      fire_fmc_read = 1, &
+      !fire_fmc_read = 1, & !LFR-Isilda
+      fire_fmc_read = 0, &
       fire_ignition_clamp = 0, &
       fire_hfx_given = 0, &
       fire_hfx_num_lines = 1, &
@@ -167,6 +168,8 @@ contains
       character(len=128):: msg !INTRODUZIDO POR ISILDA
       msg = 'crash: '//s
       call message(msg, level=0)
+      print *,'Fatal-Error: ',msg
+      stop 'Crash wrf'
 !$OMP CRITICAL(SFIRE_MESSAGE_CRIT)
 !call wrf_error_fatal3("<stdin>",204,&
 !msg)

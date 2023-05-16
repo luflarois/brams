@@ -1563,7 +1563,7 @@ contains
             bmst = fp%fmc_g(i, j)/(1.+fp%fmc_g(i, j))
             grnhft(i, j) = (dmass/dt)*(1.-bmst)*cmbcnst
             if (latent) grnqft(i, j) = (bmst + (1.-bmst)*.56)*(dmass/dt)*xlv
-
+            if(grnhft(i,j)>0) write(90,*) i,j,grnhft(i,j), dmass,dt,bmst,cmbcnst,fp%fmc_g(i, j),fgip(i, j),fuel_frac_burnt(i, j)!LFR-DBG
          end do
       end do
 

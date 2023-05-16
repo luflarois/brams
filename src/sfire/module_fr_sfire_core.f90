@@ -201,11 +201,12 @@ contains
       et = min(end_ts, end_time)
 
       ignited = 0
-
+      print *, 'LFR-DBG: start_time,end_time:',start_time,end_time,start_time < end_time
+      print *, 'LFR-DBG: start_ts,et,tos,end_ts,st:',start_ts,et,tos,end_ts,st
       if (start_ts > et + tos .or. end_ts < st) return
 
       if (start_time < end_time) then
-
+         print *, 'LFR-DBG: I am inside!'
          rels = 0.
          sx = start_x
          sy = start_y

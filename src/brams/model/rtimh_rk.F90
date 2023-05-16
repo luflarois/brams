@@ -759,7 +759,7 @@ subroutine timestep_rk(OneGrid,oneNamelistFile)
         call micro_wsm()
   endif
   !=====================================================
-
+  if (sfire > 0) print *,'Sfire ON. Time:',time
   if (sfire > 0) call sfclyr_sfire(mzp,mxp,myp,ia,iz,ja,jz)
 
   !=====================================================

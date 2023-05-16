@@ -417,7 +417,7 @@ contains
                         nfuel_cat, &
                         f_ros0, f_rosx, f_rosy, f_ros, &
                         f_int, f_lineint, f_lineint2)
-
+                        
          select case (fire_hfx_given)
 
          case (0)
@@ -431,7 +431,7 @@ contains
             call check_lfn_tign('before fuel_left', time_start + dt, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
 
             call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fuel_time, 'model: fuel_time')
-
+            print *,'LFR-DBG: fire_update_fuel_frac=',fire_update_fuel_frac
             if (fire_update_fuel_frac .eq. 1) then
                !print *, "estou dentro ifun=6 na rotina sfire_model e vou entrar na fuel_left"
                !call flush (6)
@@ -475,7 +475,13 @@ contains
                              fp%fgip, &
                              fuel_frac_burnt, &
                              fgrnhfx, fgrnqfx)
-
+               !LFR-DBG beg
+               do j = jfts, jfte
+                  do i = ifts, ifte            
+                     WRITE(91,*) i,j,fp%fgip(i,j),fuel_frac_burnt(i,j),fgrnhfx(i,j),fgrnqfx(i,j)
+                  enddo
+               enddo
+               !LFR-DBG end
          case (1, 2)
 !$OMP CRITICAL(SFIRE_MODEL_CRIT)
             write (msg, *) "model: expecting fire_hfx to be set in WRF, from wrfinput or wrfrst files"
