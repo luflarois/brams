@@ -346,13 +346,13 @@ contains
       real::psfc_floor = 1000.
       integer :: ii,jj !LFR
 
-!LFR
-                        do ii=its,ite
-                           do jj=jts,jte
-                              write(60,*) ii,jj, fmep(ii, 1, jj)
-                           end do
-                        end do
-!LFR
+! !LFR
+!                         do ii=its,ite
+!                            do jj=jts,jte
+!                               write(60,*) ii,jj, fmep(ii, 1, jj)
+!                            end do
+!                         end do
+! !LFR
       !print *, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture"
       !call flush (6)
       if (msglevel > 1) then
@@ -517,14 +517,14 @@ contains
                      if (d .ne. d .or. w .ne. w) call crash('equilibrium moisture calculation failed, result is NaN')
                      d = d*0.01
                      w = w*0.01
-                     if(isnan(deltaE)) Then
-                        print *, 'LFR-DBG: i,j,k,deltaE=',i,j,k,deltaE; call flush(6)
-                        do ii=its,ite
-                           do jj=jts,jte
-                              write(55,*) ii,jj, fmep(ii, 1, jj)
-                           end do
-                        end do
-                     endif
+                     ! if(isnan(deltaE)) Then
+                     !    print *, 'LFR-DBG: i,j,k,deltaE=',i,j,k,deltaE; call flush(6)
+                     !    do ii=its,ite
+                     !       do jj=jts,jte
+                     !          write(55,*) ii,jj, fmep(ii, 1, jj)
+                     !       end do
+                     !    end do
+                     ! endif
                         
                      EMC_d = max(max(d, w) + deltaE, 0.0)
                      EMC_w = max(min(d, w) + deltaE, 0.0)
@@ -1563,7 +1563,7 @@ contains
             bmst = fp%fmc_g(i, j)/(1.+fp%fmc_g(i, j))
             grnhft(i, j) = (dmass/dt)*(1.-bmst)*cmbcnst
             if (latent) grnqft(i, j) = (bmst + (1.-bmst)*.56)*(dmass/dt)*xlv
-            if(grnhft(i,j)>0) write(90,*) i,j,grnhft(i,j), dmass,dt,bmst,cmbcnst,fp%fmc_g(i, j),fgip(i, j),fuel_frac_burnt(i, j)!LFR-DBG
+            !if(grnhft(i,j)>0) write(90,*) i,j,grnhft(i,j), dmass,dt,bmst,cmbcnst,fp%fmc_g(i, j),fgip(i, j),fuel_frac_burnt(i, j)!LFR-DBG
          end do
       end do
 

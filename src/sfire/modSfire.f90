@@ -425,7 +425,7 @@ contains
             ! print*,sfire_g%dzdyf
 
             !print *, " Iniciando o SFIRE"
-            !call flush (6)
+            call flush (6)
 
             step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
 
