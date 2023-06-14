@@ -41,7 +41,7 @@ module modTimeLineFRN
    character(len=*), parameter :: sourceName = 'modTimeLineFRN.f90' ! Nome do arquivo fonte
    character(len=*), parameter :: moduleName = 'modTimeLIneFRN' ! Nome do módulo
 
-   integer, parameter :: maxSites = 16
+   integer, parameter :: maxSites = 128
    !! Número máximo de sites permitidos
    integer, parameter :: maxVars = 32
    integer, parameter :: maxVarIn = 256

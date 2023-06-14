@@ -310,10 +310,10 @@ clean:
 
 install:
 	install -D $(EXE) $(BINDIR)/$(notdir $(EXE))
-	\cp -f -R $(RAMS_ROOT)/jules.in $(BINDIR)/jules.in
-	\cp -f $(RAMS_ROOT)/variables.csv $(BINDIR)/variables.csv
+	\cp -f -R $(RAMS_ROOT)/jules.in $(BINDIR)/
+	\cp -f $(RAMS_ROOT)/Bin_files/variables.csv $(BINDIR)/
 	\cp -f -R $(RAMS_ROOT)/namelists $(BINDIR)/
-	\cp -f -R $(RAMS_ROOT)/namelists/tables/* $(BINDIR)/tables/
+	\cp -f -R $(RAMS_ROOT)/namelists/tables/ $(BINDIR)/
 	\cp -f $(RAMS_ROOT)/scripts/* $(BINDIR)/
 
 install-strip:
