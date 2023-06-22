@@ -404,8 +404,9 @@ OBJ_MOD = \
 	module_wind_fitch.o \
 	initComm.o \
 	debugTools.o \
-	ConvPar_GF_GEOS5.o \
-	Henrys_Law_cts.o \
+	modConvParGF.o \
+	modHenrysLawCts.o \
+	modGate.o \
 	MAPL_Constants.o \
 	optical.o        \
 	mic_gfdl_driver.o \
@@ -820,7 +821,26 @@ OBJ_MOD = \
    woodprod.o \
    yomhook.o \
    zenith_mod.o \
-   modTimeLineFRN.o
+   modTimeLineFRN.o \
+   module_fr_sfire_model.o \
+   module_fr_sfire_util.o \
+   module_fr_sfire_phys.o \
+   module_fr_sfire_core.o \
+   module_fr_sfire_atm.o \
+   module_fr_sfire_driver.o \
+   byteswap.o \
+   module_state_description.o \
+   module_domain_type.o \
+   read_namelist_fire.o \
+   module_configure.o \
+   module_machine.o \
+   module_tiles.o \
+   module_model_constants.o \
+   module_driver_constants.o \
+   mem_sfire.o \
+   read_namelist_fire.o \
+   module_fr_sfire_driver_brams.o \
+	modSfire.o
 
 
 	JULES_OBJ_SFCLYR = sfclyr_jules.o
@@ -1056,8 +1076,11 @@ MOD_MOD = \
 	module_cu_gf.mod \
 	module_cu_gf2.mod \
 	mapl_constantsmod.mod \
-	henrys_law_constantsmod.mod \
-	convpar_gf_geos5.mod \
+	modHenrysLawCts.mod \
+	modConstants.F90 \
+	modGate.F90 \
+	modVector.o \
+	modConvParGF.mod \
 	cuparm_grell3.mod \
 	digitalfilter.mod \
 	jx_data.mod \
@@ -1181,7 +1204,7 @@ MOD_MOD = \
 	gfdl_cloud_microphys_mod.mod \
 	modIau.mod \
 	leaf3_ocean_only.mod \
-	modTimeLineFRN.mod
+	modTimeLineFRN.mod 
 
 ifeq ($(NETCDFFDIR),)
 	MOD_MODEL =  netcdf.mod $(MOD_MOD) 

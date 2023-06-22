@@ -227,6 +227,8 @@ subroutine timestep_rk(OneGrid,oneNamelistFile)
  
   use mod_leaf3_ocean_only, only: sfclyr_ocean_only
 
+  use sfireMod, only: sfclyr_sfire
+
   implicit none
 
   type(Grid), pointer :: OneGrid
@@ -754,7 +756,11 @@ subroutine timestep_rk(OneGrid,oneNamelistFile)
   elseif(mcphys_type >= 5 ) then
         call micro_wsm()
   endif
-  !----------------------------------------
+  !=====================================================
+
+  !call sfclyr_sfire(mzp,mxp,myp,ia,iz,ja,jz)
+
+  !=====================================================
 
   !- Thermodynamic diagnosis
   if (mcphys_type <= 1 .and. level==3)  then

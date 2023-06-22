@@ -97,6 +97,7 @@ ENERGY        =$(RAMS_ROOT)/src/brams/energy
 AERCLIM		  =$(RAMS_ROOT)/src/brams/aerosol
 EVAL		     =$(RAMS_ROOT)/src/brams/evaluate
 PRE-BRAMS     =$(RAMS_ROOT)/src/pre-brams
+SFIRE         =$(RAMS_ROOT)/src/sfire
 
 include $(RAMS_ROOT)/build/jules_paths.mk
 

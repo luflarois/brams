@@ -88,9 +88,14 @@ MODULE CUPARM_GRELL3
   USE Phys_const, only: cp, p00, tcrit, g, cpor , XL, rm,rgas
 
 !----------- GF - GEOS-5
-  USE ConvPar_GF_GEOS5, only: GF_GEOS5_DRV, deep, shal, mid , nmp, lsmp , cnmp &
-                            , GF_convpar_init,apply_sub_mp,icumulus_gf, liq_ice_number_conc
+!  USE ConvPar_GF_GEOS5, only: GF_GEOS5_DRV, deep, shal, mid , nmp, lsmp , cnmp &
+!                            , GF_convpar_init,apply_sub_mp,icumulus_gf, liq_ice_number_conc
 !-----------
+
+  use modConvParGF  , only: convParGFDriver, deep => p_deep, shal => p_shal, mid => p_mid &
+                          , nmp => p_nmp, lsmp => p_lsmp, cnmp => p_cnmp, &
+                            initModConvParGF, icumulus_gf, apply_sub_mp, liq_ice_number_conc
+
 
   use ccatt_start, only: ccatt
   use mem_chem1  , only: chemistry
@@ -508,7 +513,7 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
   !---
   REAL   ,DIMENSION(mxp,myp,mzp,mtp)  :: TRACER  !geos-5 data structure
   !---
-  REAL   , DIMENSION(mxp,myp)  :: dx2d ,lons,lats,sfc_press,xland, tke_pbl
+  REAL   , DIMENSION(mxp,myp)  :: dx2d ,lons,lats,sfc_press,xland, tke_pbl, glat, glon
 
   INTEGER :: kr,n,i1,i2,j1,j2
   INTEGER, DIMENSION(mxp,myp,maxiens) ::     &
@@ -541,6 +546,12 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
   	    ,tup5d_tmp  		     &
   	    ,conv_cld_fr5d_tmp
 
+    integer :: l_unit
+    character(len=4) :: ctime
+    integer :: rec_size, irec, nz
+    real   , allocatable, dimension(:,:,:)   :: qexp, hexcp 
+    real   , allocatable, dimension(:,:)     :: wlpool, aa1_adv, aa1_radpbl
+    
 !if(initial.eq.2.and.time.lt.cptime) return
 !if(initial.eq.2.and.time.lt.dtlt) return
 
@@ -582,6 +593,10 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
     ims=1   ;ime=mxp ;jms=1   ;jme=myp ;kms=1; kme=mzp
     ips=ia+1;ipe=iz-2;jps=ja+1;jpe=jz-2;kps=1; kpe=mzp
     its=ia  ;ite=iz  ;jts=ja  ;jte=jz  ;kts=1; kte=mzp-1
+
+    allocate(qexp(kms:kme,ims:ime,jms:jme), hexcp(kms:kme,ims:ime,jms:jme))
+    allocate(wlpool(ims:ime,jms:jme))
+    allocate(aa1_adv(ims:ime,jms:jme), aa1_radpbl(ims:ime,jms:jme))
 
     grid_length=sqrt(deltaxn(ngrid)*deltayn(ngrid))
 
@@ -964,7 +979,7 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
 
     IF(read_GF_ConvPar_nml) THEN
       !-- read the GF namelist
-      call GF_convpar_init(mynum)
+      k=initModConvParGF()
       read_GF_ConvPar_nml = .false.
     ENDIF
 
@@ -1102,102 +1117,365 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
 		                     (basic_g(ngrid)%pp(2,:,:)+basic_g(ngrid)%pi0(2,:,:))/cp ) !Kelvin
     endif
 
-    !- call the driver routine to apply the parameterization
-    CALL GF_GEOS5_DRV(mxp,myp,mzp,mtp ,nmp, time, itime1 &
-                     ,ims,ime, jms,jme, kms,kme   &
-                     ,its,ite, jts,jte, kts,kte   &
-		               ,flip        &
-                     ,fscav_int   &
-                     ,mynum       &
-                     ,dtlt        &
-                     ,dx2d        &
-                     ,stochastic_sig &
-                     ,zm3d        &
-                     ,zt3d        &
-		               ,dm3d        &
-                     !--- sfc inputs 
-                     ,lons        &
-                     ,lats        &
-                     ,aot500      &
-                     ,temp2m      &
-                     ,turb_g(ngrid)%sflux_r &
-                     ,turb_g(ngrid)%sflux_t &
-                     ,grid_g(ngrid)%topt    &
-                     ,xland                 &
-                     ,sfc_press             &
-                     ,kpbl                  &
-                     ,tke_pbl               &
-                     !--- atmos state
-                     ,col_sat&
-                     ,up     &
-                     ,vp     &
-                     ,wp     &
-                     ,temp   &
-                     ,press  &
-                     ,rvap   &
-		               ,mp_ice &
-		               ,mp_liq &
-		               ,mp_cf  &
-                     ,rvap   &
-		               !--- atmos composition state
-                     ,TRACER   & !- note: uses GEOS-5 data structure
-                     !---- forcings---
-                     ,buoy_exc &
-		               , gsf_t   & ! forcing for theta adv+rad
-		               , gsf_q   & ! forcing for rv    adv
-                     ,advf_t   &
-		               ,sgsf_t   & ! forcing for theta pbl
- 		               ,sgsf_q   & ! forcing for rv    pbl
-                     !---- output ----
-                     ,cuparm_g(ngrid)%conprr  &
-                     ,g3d_g(ngrid)%lightn_dens& 
-                     ,g3d_g(ngrid)%rh_dicy_fct&
-                     ,g3d_g(ngrid)%thsrc      & ! temp tendency
-                     ,g3d_g(ngrid)%rtsrc      & ! rv tendency
-                     ,g3d_g(ngrid)%clsrc      & ! cloud/ice  mass   mix ratio tendency
-                     ,g3d_g(ngrid)%nlsrc      & ! cloud drop number mix ratio tendency
-                     ,g3d_g(ngrid)%nisrc      & ! ice        number mix ratio tendency
-                     ,g3d_g(ngrid)%usrc       & ! u tendency
-                     ,g3d_g(ngrid)%vsrc       & ! v tendency
-                     ,sub_mpqi    & 
-                     ,sub_mpql    & 
-                     ,sub_mpcf    & 
-                     ,src_buoy    &
-                     ,src_chem    & ! tracer tendency
-                     ,revsu_gf    &
-                     ,prfil_gf    & 
-                     !
-		               ,do_this_column    &
-                     ,ierr4d_tmp        & 
-                     ,jmin4d_tmp        &
-                     ,klcl4d_tmp        &
-                     ,k224d_tmp         &
-                     ,kbcon4d_tmp       &
-                     ,ktop4d_tmp        &
-                     ,kstabi4d_tmp      &
-                     ,kstabm4d_tmp      &
-                     ,cprr4d_tmp        &
-                     ,xmb4d_tmp         &
-                     ,edt4d_tmp         &
-                     ,pwav4d_tmp        &
-                     ,sigma4d_tmp       &
-                     ,pcup5d_tmp        &
-                     ,up_massentr5d_tmp &
-                     ,up_massdetr5d_tmp &
-                     ,dd_massentr5d_tmp &
-                     ,dd_massdetr5d_tmp &
-                     ,zup5d_tmp         &
-                     ,zdn5d_tmp         &
-                     ,prup5d_tmp        &
-                     ,prdn5d_tmp        &
-                     ,clwup5d_tmp       &
-                     ,tup5d_tmp         &
-                     ,conv_cld_fr5d_tmp &
-                     !-- for debug/diagnostic
-                     ,AA0,AA1,AA2,AA3,AA1_BL,AA1_CIN,TAU_BL,TAU_EC  &
-                     ,VAR2d,VAR3d_aGF,VAR3d_bGF,VAR3d_cGF,VAR3d_dGF &
-                     )
+
+!LFR Gera os dados de entrada para testes
+!    write(ctime,fmt="(I4.4)") int(time)
+!    write(45,*) "lons: ", lons
+!    write(45,*) "lats: ", lats
+!    open(newunit = l_unit,file = "gf_dataIn-"//ctime//".bin",ACCESS = "stream", action="write", status="replace")
+!    write(l_unit) confrq
+!    write(l_unit) mxp,myp,mzp,mtp ,nmp, time, itime1, maxiens
+!    write(l_unit) ims,ime, jms,jme, kms,kme
+!    write(l_unit) its,ite, jts,jte, kts,kte
+    !
+!		write(l_unit) flip       
+!    write(l_unit) fscav_int 
+!    write(l_unit) mynum     
+!    write(l_unit) dtlt     
+!    write(l_unit) dx2d     
+!    write(l_unit) stochastic_sig
+!    write(l_unit) zm3d   
+!    write(l_unit) zt3d   
+!		write(l_unit) dm3d   
+!    write(l_unit) lons   
+!    write(l_unit) lats   
+!    write(l_unit) aot500 
+!    write(l_unit) temp2m 
+!    write(l_unit) turb_g(ngrid)%sflux_r 
+!    write(l_unit) turb_g(ngrid)%sflux_t 
+!    write(l_unit) grid_g(ngrid)%topt    
+!    write(l_unit) xland                 
+!    write(l_unit) sfc_press             
+!    write(l_unit) kpbl                  
+!    write(l_unit) tke_pbl               
+!    write(l_unit) col_sat
+!    write(l_unit) up     
+!    write(l_unit) vp     
+!    write(l_unit) wp     
+!    write(l_unit) temp   
+!    write(l_unit) press  
+!    write(l_unit) rvap   
+!		write(l_unit) mp_ice 
+!		write(l_unit) mp_liq 
+!		write(l_unit) mp_cf  
+!    write(l_unit) rvap   
+!    write(l_unit) TRACER   
+!    write(l_unit) buoy_exc 
+!		write(l_unit)  gsf_t   
+!		write(l_unit)  gsf_q   
+!    write(l_unit) advf_t   
+!		write(l_unit) sgsf_t   
+! 		write(l_unit) sgsf_q   
+!    write(l_unit) cuparm_g(ngrid)%conprr  
+!    write(l_unit) g3d_g(ngrid)%lightn_dens
+!    write(l_unit) g3d_g(ngrid)%rh_dicy_fct
+!    write(l_unit) g3d_g(ngrid)%thsrc      
+!    write(l_unit) g3d_g(ngrid)%rtsrc      
+!    write(l_unit) g3d_g(ngrid)%clsrc      
+!    write(l_unit) g3d_g(ngrid)%nlsrc      
+!    write(l_unit) g3d_g(ngrid)%nisrc      
+!    write(l_unit) g3d_g(ngrid)%usrc       
+!    write(l_unit) g3d_g(ngrid)%vsrc       
+    ! write(l_unit) sub_mpqi     
+    ! write(l_unit) sub_mpql     
+    ! write(l_unit) sub_mpcf     
+    ! write(l_unit) src_buoy    
+    ! write(l_unit) src_chem   
+    ! write(l_unit) revsu_gf    
+    ! write(l_unit) prfil_gf     
+		! write(l_unit) do_this_column
+    ! write(l_unit) ierr4d_tmp    
+    ! write(l_unit) jmin4d_tmp    
+    ! write(l_unit) klcl4d_tmp    
+    ! write(l_unit) k224d_tmp     
+    ! write(l_unit) kbcon4d_tmp   
+    ! write(l_unit) ktop4d_tmp    
+    ! write(l_unit) kstabi4d_tmp  
+    ! write(l_unit) kstabm4d_tmp  
+    ! write(l_unit) cprr4d_tmp    
+    ! write(l_unit) xmb4d_tmp     
+    ! write(l_unit) edt4d_tmp     
+    ! write(l_unit) pwav4d_tmp    
+    ! write(l_unit) sigma4d_tmp   
+    ! write(l_unit) pcup5d_tmp        
+    ! write(l_unit) up_massentr5d_tmp 
+    ! write(l_unit) up_massdetr5d_tmp 
+    ! write(l_unit) dd_massentr5d_tmp 
+    ! write(l_unit) dd_massdetr5d_tmp 
+    ! write(l_unit) zup5d_tmp         
+    ! write(l_unit) zdn5d_tmp         
+    ! write(l_unit) prup5d_tmp        
+    ! write(l_unit) prdn5d_tmp        
+    ! write(l_unit) clwup5d_tmp       
+    ! write(l_unit) tup5d_tmp         
+    ! write(l_unit) conv_cld_fr5d_tmp 
+    ! write(l_unit) AA0,AA1,AA2,AA3,AA1_BL,AA1_CIN,TAU_BL,TAU_EC
+    ! write(l_unit) VAR2d,VAR3d_aGF,VAR3d_bGF,VAR3d_cGF,VAR3d_dGF
+    ! close(l_unit)
+
+
+    !wlpool = 5.
+    !qexp   = 0.
+    !hexcp  = 0.
+    !  CALL GF_GEOS5_DRV(mxp,myp,mzp,mtp ,nmp, time, itime1 &
+    !                   ,ims,ime, jms,jme, kms,kme   &
+    !                   ,its,ite, jts,jte, kts,kte   &
+		!                 ,flip        &
+    !                   ,fscav_int   &
+    !                   ,mynum       &
+    !                   ,dtlt        &
+    !                   ,dx2d        &
+    !                   ,stochastic_sig &
+    !                   ,zm3d        &
+    !                   ,zt3d        &
+		!                 ,dm3d        &
+    !                   !--- sfc inputs 
+    !                   ,lons        &
+    !                   ,lats        &
+    !                   ,aot500      &
+    !                   ,temp2m      &
+    !                   ,turb_g(ngrid)%sflux_r &
+    !                   ,turb_g(ngrid)%sflux_t &
+    !                   ,grid_g(ngrid)%topt    &
+    !                   ,xland                 &
+    !                   ,sfc_press             &
+    !                   ,kpbl                  &
+    !                   ,tke_pbl               &
+    !                   !--- atmos state
+    !                   ,col_sat&
+    !                   ,up     &
+    !                   ,vp     &
+    !                   ,wp     &
+    !                   ,temp   &
+    !                   ,press  &
+    !                   ,rvap   &
+		!                 ,mp_ice &
+		!                 ,mp_liq &
+		!                 ,mp_cf  &
+    !                   ,rvap   &
+		!                 !--- atmos composition state
+    !                   ,TRACER   & !- note: uses GEOS-5 data structure
+    !                   !---- forcings---
+    !                   ,buoy_exc &
+		!                 , gsf_t   & ! forcing for theta adv+rad
+		!                 , gsf_q   & ! forcing for rv    adv
+    !                   ,advf_t   &
+		!                 ,sgsf_t   & ! forcing for theta pbl
+ 		!                 ,sgsf_q   & ! forcing for rv    pbl
+    !                   !---- output ----
+    !                   ,cuparm_g(ngrid)%conprr  &
+    !                   ,g3d_g(ngrid)%lightn_dens& 
+    !                   ,g3d_g(ngrid)%rh_dicy_fct&
+    !                   ,g3d_g(ngrid)%thsrc      & ! temp tendency
+    !                   ,g3d_g(ngrid)%rtsrc      & ! rv tendency
+    !                   ,g3d_g(ngrid)%clsrc      & ! cloud/ice  mass   mix ratio tendency
+    !                   ,g3d_g(ngrid)%nlsrc      & ! cloud drop number mix ratio tendency
+    !                   ,g3d_g(ngrid)%nisrc      & ! ice        number mix ratio tendency
+    !                   ,g3d_g(ngrid)%usrc       & ! u tendency
+    !                   ,g3d_g(ngrid)%vsrc       & ! v tendency
+    !                   ,sub_mpqi    & 
+    !                   ,sub_mpql    & 
+    !                   ,sub_mpcf    & 
+    !                   ,src_buoy    &
+    !                   ,src_chem    & ! tracer tendency
+    !                   ,revsu_gf    &
+    !                   ,prfil_gf    & 
+    !                   !
+		!                 ,do_this_column    &
+    !                   ,ierr4d_tmp        & 
+    !                   ,jmin4d_tmp        &
+    !                   ,klcl4d_tmp        &
+    !                   ,k224d_tmp         &
+    !                   ,kbcon4d_tmp       &
+    !                   ,ktop4d_tmp        &
+    !                   ,kstabi4d_tmp      &
+    !                   ,kstabm4d_tmp      &
+    !                   ,cprr4d_tmp        &
+    !                   ,xmb4d_tmp         &
+    !                   ,edt4d_tmp         &
+    !                   ,pwav4d_tmp        &
+    !                   ,sigma4d_tmp       &
+    !                   ,pcup5d_tmp        &
+    !                   ,up_massentr5d_tmp &
+    !                   ,up_massdetr5d_tmp &
+    !                   ,dd_massentr5d_tmp &
+    !                   ,dd_massdetr5d_tmp &
+    !                   ,zup5d_tmp         &
+    !                   ,zdn5d_tmp         &
+    !                   ,prup5d_tmp        &
+    !                   ,prdn5d_tmp        &
+    !                   ,clwup5d_tmp       &
+    !                   ,tup5d_tmp         &
+    !                   ,conv_cld_fr5d_tmp &
+    !                   !-- for debug/diagnostic
+    !                   ,AA0,AA1,AA2,AA3,AA1_BL,AA1_CIN,TAU_BL,TAU_EC  &
+    !                   ,VAR2d,VAR3d_aGF,VAR3d_bGF,VAR3d_cGF,VAR3d_dGF &
+    !                   )
+
+        CALL convParGFDriver(mxp,myp,mzp,mtp ,nmp, time, itime1 &
+                       ,its,ite, jts,jte, kts,kte   &
+		                 ,flip        &
+                       ,fscav_int   &
+                       ,mynum       &
+                       ,dtlt        &
+                       ,dx2d        &
+                       ,stochastic_sig &
+                       ,zt3d        &
+		                 ,dm3d        &
+                       !--- sfc inputs 
+                       ,lons        &
+                       ,lats        &
+                       ,aot500      &
+                       ,temp2m      &
+                       ,turb_g(ngrid)%sflux_r &
+                       ,turb_g(ngrid)%sflux_t &
+                       ,qexp        &
+                       ,hexcp       & 
+                       ,wlpool      &
+                       ,grid_g(ngrid)%topt    &
+                       ,xland                 &
+                       ,sfc_press             &
+                       ,kpbl                  &
+                       ,tke_pbl               &
+                       !--- atmos state
+                       ,up     &
+                       ,vp     &
+                       ,wp     &
+                       ,temp   &
+                       ,press  &
+                       ,rvap   &
+		                 ,mp_ice &
+		                 ,mp_liq &
+		                 ,mp_cf  &
+                       ,rvap   &
+		                 !--- atmos composition state
+                       ,TRACER   & !- note: uses GEOS-5 data structure
+                       !---- forcings---
+                       ,buoy_exc &
+		                 , gsf_t   & ! forcing for theta adv+rad
+		                 , gsf_q   & ! forcing for rv    adv
+                       ,advf_t   &
+		                 ,sgsf_t   & ! forcing for theta pbl
+ 		                 ,sgsf_q   & ! forcing for rv    pbl
+                       !---- output ----
+                       ,cuparm_g(ngrid)%conprr  &
+                       ,g3d_g(ngrid)%lightn_dens& 
+                       ,g3d_g(ngrid)%rh_dicy_fct&
+                       ,g3d_g(ngrid)%thsrc      & ! temp tendency
+                       ,g3d_g(ngrid)%rtsrc      & ! rv tendency
+                       ,g3d_g(ngrid)%clsrc      & ! cloud/ice  mass   mix ratio tendency
+                       ,g3d_g(ngrid)%nlsrc      & ! cloud drop number mix ratio tendency
+                       ,g3d_g(ngrid)%nisrc      & ! ice        number mix ratio tendency
+                       ,g3d_g(ngrid)%usrc       & ! u tendency
+                       ,g3d_g(ngrid)%vsrc       & ! v tendency
+                       ,sub_mpqi    & 
+                       ,sub_mpql    & 
+                       ,sub_mpcf    & 
+                       ,src_buoy    &
+                       ,src_chem    & ! tracer tendency
+                       ,revsu_gf    &
+                       ,prfil_gf    & 
+                       !
+		                 ,do_this_column    &
+                       ,ierr4d_tmp        & 
+                       ,jmin4d_tmp        &
+                       ,klcl4d_tmp        &
+                       ,k224d_tmp         &
+                       ,kbcon4d_tmp       &
+                       ,ktop4d_tmp        &
+                       ,kstabi4d_tmp      &
+                       ,kstabm4d_tmp      &
+                       ,cprr4d_tmp        &
+                       ,xmb4d_tmp         &
+                       ,edt4d_tmp         &
+                       ,pwav4d_tmp        &
+                       ,sigma4d_tmp       &
+                       ,pcup5d_tmp        &
+                       ,up_massentr5d_tmp &
+                       ,up_massdetr5d_tmp &
+                       ,dd_massentr5d_tmp &
+                       ,dd_massdetr5d_tmp &
+                       ,zup5d_tmp         &
+                       ,zdn5d_tmp         &
+                       ,prup5d_tmp        &
+                       ,prdn5d_tmp        &
+                       ,clwup5d_tmp       &
+                       ,tup5d_tmp         &
+                       ,conv_cld_fr5d_tmp &
+                       !-- for debug/diagnostic
+                       ,aa0,aa1,aa1_adv,aa1_radpbl,aa1_bl,aa2,aa3,tau_bl,tau_ec  &
+                       ,var2d,var3d_agf,var3d_bgf,var3d_cgf,var3d_dgf &
+                )
+
+
+
+
   !
+! !LFR Gera os dados de saida para testes
+
+!     glon= lons*180./3.14159
+!     glat= lats*180./3.14159
+
+!     rec_size = mxp*myp*4
+!     print *, rec_size
+!     open(newunit = l_unit, file="gf_dataOut-ref-"//ctime//".gra", form='unformatted', &
+!              access='direct', status='replace', recl=rec_size)
+!     irec=1
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%thsrc(nz,:,:)
+!        irec=irec+1
+!     enddo
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%rtsrc(nz,:,:)
+!        irec=irec+1
+!     enddo         
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%clsrc(nz,:,:)
+!        irec=irec+1
+!     enddo       
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%nlsrc(nz,:,:)
+!        irec=irec+1
+!     enddo  
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%nisrc(nz,:,:)
+!        irec=irec+1
+!     enddo  
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%usrc(nz,:,:)
+!        irec=irec+1
+!     enddo  
+!     do nz=1,mzp
+!        write(l_unit,rec=irec) g3d_g(ngrid)%vsrc(nz,:,:)
+!        irec=irec+1
+!     enddo  
+!     write(l_unit,rec=irec) cuparm_g(ngrid)%conprr(:,:)
+!     close(l_unit)
+
+!     open(newunit = l_unit, file="gf_dataOut-ref-"//ctime//".ctl", action='write', status='replace')
+
+!     write(l_unit,*) 'dset ^'//"gf_dataOut-ref-"//ctime//".gra"
+!     !writing others infos to ctl
+!     write(l_unit,*) 'undef -0.9990000E+34'
+!     write(l_unit,*) 'title GF_teste'
+!     write(l_unit,*) 'xdef ',mxp,' linear ',glon(1,1),glon(2,1)-glon(1,1)
+!     write(l_unit,*) 'ydef ',myp,' linear ',glat(1,1),glat(1,2)-glat(1,1)
+!     write(l_unit,*) 'zdef ',mzp,'levels',flip
+!     write(l_unit,*) 'tdef 1 linear 00:00Z01JAN200 1mo'
+!     write(l_unit,*) 'vars ',8
+!     write(l_unit,*) 'thsrc',mzp,'99 ','K'
+!     write(l_unit,*) 'rtsrc',mzp,'99 ','K'
+!     write(l_unit,*) 'clsrc',mzp,'99 ','K'
+!     write(l_unit,*) 'nlsrc',mzp,'99 ','K'
+!     write(l_unit,*) 'nisrc',mzp,'99 ','K'
+!     write(l_unit,*) 'usrc ',mzp,'99 ','K'
+!     write(l_unit,*) 'vsrc ',mzp,'99 ','K'
+!     write(l_unit,*) 'conprr ','01',' 99 ','K'
+!     write(l_unit,*) 'endvars'
+!     close(l_unit)
+
+
+
   !-- outputs ....
    
    if( icumulus_gf(deep) == 1) then 
@@ -1458,6 +1736,13 @@ subroutine CUPARM_GRELL3_CATT(OneGrid, iens,iinqparm,iinshcu)
    endif
 ! ------------- Stilt - BRAMS coupling  ------------------ ML]
 !
+
+  if(allocated(qexp      )) deallocate(qexp      )
+  if(allocated(hexcp     )) deallocate(hexcp     )
+  if(allocated(wlpool    )) deallocate(wlpool    )
+  if(allocated(aa1_adv   )) deallocate(aa1_adv   )
+  if(allocated(aa1_radpbl)) deallocate(aa1_radpbl)
+
 end subroutine CUPARM_GRELL3_CATT
 !
 !-------------------------------------------------------------------------------------------------
@@ -2050,7 +2335,7 @@ end subroutine mcphysics0
 subroutine mcphysics1(mcphys_type,m1,m2,m3,ia,iz,ja,jz,dtlt,cpi,theta,pp,pi0,dn0 &
                     ,clsrc,rct,rpt,rtt) 
 
-use ConvPar_GF_GEOS5, only : fract_liq_f
+use modConvParGF, only : FractLiqF
 implicit none
 integer :: m1,m2,m3,ia,iz,ja,jz,k,i,j,mcphys_type
 real dtlt,cpi
@@ -2065,7 +2350,7 @@ do j = ja,jz
      do k = 1,m1
             tempk = theta(k,i,j)*(pp(k,i,j)+pi0(k,i,j))*cpi ! air temp (Kelvin)
 
-            tem1 = fract_liq_f(tempk)
+            tem1 = FractLiqF(tempk)
             
 	         !- splitting cumulus tendency into water and ice tendencies
             rct(k,i,j) = rct(k,i,j)+clsrc(k,i,j)* tem1 ! cloud water
@@ -2085,7 +2370,7 @@ end subroutine mcphysics1
 subroutine mcphysics2(mcphys_type,m1,m2,m3,ia,iz,ja,jz,dtlt,cpi,theta,pp,pi0,dn0 &
                     ,clsrc,rct,rpt,rtt,cpt)
 
-use ConvPar_GF_GEOS5, only : make_IceNumber,fract_liq_f
+use modConvParGF, only : MakeIceNumber,FractLiqF
 implicit none
 integer :: m1,m2,m3,ia,iz,ja,jz,k,i,j,mcphys_type
 real dtlt,cpi
@@ -2100,13 +2385,13 @@ real, parameter :: tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf)
       do k = 1,m1
             tempk = theta(k,i,j)*(pp(k,i,j)+pi0(k,i,j))*cpi ! air temp (Kelvin)
 
-            tem1 = fract_liq_f(tempk)
+            tem1 = FractLiqF(tempk)
 
             !-- detrained pristine mass mixing ratio
 	         tqice = (1.-tem1) * clsrc(k,i,j) * dn0(k,i,j)* dtlt
 
             !-- detrained ICN ice number concenration in the time "dtlt"
-	         add_npp = max(0.0, make_IceNumber(tqice, tempk)/dn0(k,i,j))
+	         add_npp = max(0.0, MakeIceNumber(tqice, tempk)/dn0(k,i,j))
             
 	         !- update tendency 
             cpt(k,i,j) = cpt(k,i,j)+ add_npp/dtlt
@@ -2120,9 +2405,9 @@ end subroutine mcphysics2
 subroutine mcphysics3(mcphys_type,m1,m2,m3,ia,iz,ja,jz,dtlt,cpi,theta,pp,pi0,dn0 &
                     ,ccp,clsrc,rct,rpt,rtt,cpt,cct)
 
-use ConvPar_GF_GEOS5, only : make_DropletNumber &
-                            ,make_IceNumber     &
-			    ,fract_liq_f
+use modConvParGF, only : MakeDropletNumber &
+                            ,MakeIceNumber     &
+			    ,fractLiqF
 implicit none
 integer :: m1,m2,m3,ia,iz,ja,jz,k,i,j,mcphys_type
 real dtlt,cpi
@@ -2137,13 +2422,13 @@ real, parameter :: tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf)
       do k = 1,m1
             tempk = theta(k,i,j)*(pp(k,i,j)+pi0(k,i,j))*cpi ! air temp (Kelvin)
 
-            tem1 = fract_liq_f(tempk)
+            tem1 = fractLiqF(tempk)
 
             !-- detrained pristine mass mixing ratio
             tqice = (1.-tem1) * clsrc(k,i,j) * dn0(k,i,j)* dtlt
 
             !-- detrained ICN ice number concenration in the time "dtlt"
-            add_npp = max(0.0, make_IceNumber(tqice, tempk)/dn0(k,i,j))
+            add_npp = max(0.0, MakeIceNumber(tqice, tempk)/dn0(k,i,j))
             
             !- update tendency 
             cpt(k,i,j) = cpt(k,i,j)+ add_npp/dtlt
@@ -2152,7 +2437,7 @@ real, parameter :: tf=233.16, tcr=263.16, tcrf=1.0/(tcr-tf)
 	         tqliq =  tem1 * clsrc(k,i,j) * dn0(k,i,j) * dtlt
 
 !--check if
-            add_ncp = make_DropletNumber(tqliq, ccp(k,i,j))/dn0(k,i,j)
+            add_ncp = MakeDropletNumber(tqliq, ccp(k,i,j))/dn0(k,i,j)
 !or
 !	         add_ncp = make_DropletNumber(tqliq, nwfa(k,i,j))/dn0(k,i,j)
            

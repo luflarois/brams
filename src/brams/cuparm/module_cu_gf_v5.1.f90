@@ -4511,19 +4511,21 @@ endif
         do i=its,itf
          aa0(i)=0.
         enddo
-        DO 100 k=kts+1,ktf
-        DO 100 i=its,itf
-         IF(ierr(i).ne.0)GO TO 100
-         IF(K.LE.KBCON(I))GO TO 100
-         IF(K.Gt.KTOP(I))GO TO 100
-         DZ=Z(I,K)-Z(I,K-1)
-         da=zu(i,k)*DZ*(9.81/(1004.*( &
-                (T_cup(I,K)))))*DBY(I,K-1)/ &
-             (1.+GAMMA_CUP(I,K))
-         IF(K.eq.KTOP(I).and.da.le.0.)go to 100
-         AA0(I)=AA0(I)+da
-         if(aa0(i).lt.0.)aa0(i)=0.
-100     continue
+        DO k=kts+1,ktf
+            DO i=its,itf
+               IF(ierr(i).ne.0) cycle !GO TO 100
+               IF(K.LE.KBCON(I)) cycle !GO TO 100
+               IF(K.Gt.KTOP(I)) cycle !GO TO 100
+               DZ=Z(I,K)-Z(I,K-1)
+               da=zu(i,k)*DZ*(9.81/(1004.*( &
+               (T_cup(I,K)))))*DBY(I,K-1)/ &
+               (1.+GAMMA_CUP(I,K))
+               IF(K.eq.KTOP(I).and.da.le.0.) cycle!go to 100
+               AA0(I)=AA0(I)+da
+               if(aa0(i).lt.0.)aa0(i)=0.
+            end do
+         end do
+!100     continue
 
    END SUBROUTINE cup_up_aa0
 
@@ -5169,17 +5171,17 @@ endif
 !       enddo !i
 !     endif  ! use_excess
 
-        DO 100 k=kts+1,ktf
-        DO 100 i=its,itf
-         IF(ierr(i).ne.0)GO TO 100
+        DO k=kts+1,ktf
+            DO i=its,itf
+         IF(ierr(i).ne.0) cycle !GO TO 100
 
 !-- mass con
 !         IF(K.Lt.KBCON(I))GO TO 100     !  original
-         IF (K.Lt.k22(I)+1)GO TO 100    !  mass cons option
+         IF (K.Lt.k22(I)+1) cycle!GO TO 100    !  mass cons option
 !-- mass con
 
 
-         IF(K.Gt.KTOP(I))GO TO 100
+         IF(K.Gt.KTOP(I)) cycle!GO TO 100
          rhoc=.5*(rho(i,k)+rho(i,k-1))
          DZ=Z_cup(i,K)-Z_cup(i,K-1)
          DP=p_cup(i,K)-p_cup(i,K-1)
@@ -5295,7 +5297,9 @@ endif
 !
          PWAV(I)=PWAV(I)+PW(I,K)
          Psum(I)=Psum(I)+clw_all(I,K)*zu(i,k) *dz
- 100     CONTINUE
+      end do
+      end do
+!   100     CONTINUE
        prop_ave=0.
        iprop=0
        do k=kts,kte
@@ -6684,10 +6688,10 @@ END SUBROUTINE CUP_gf_sh
         DO i=its,itf
          AA0(I)=0.
         ENDDO
-        DO 100 k=kts+1,ktf
-        DO 100 i=its,itf
-         IF(ierr(i).ne.0 )GO TO 100
-         IF(k.gt.KBCON(i))GO TO 100
+        DO k=kts+1,ktf
+        DO i=its,itf
+         IF(ierr(i).ne.0 ) cycle!GO TO 100
+         IF(k.gt.KBCON(i)) cycle !GO TO 100
 
          DZ=Z(I,K)-Z(I,K-1)
          !print*,"dz=",i,k,z(i,k),Z(I,K-1),dz
@@ -6698,7 +6702,9 @@ END SUBROUTINE CUP_gf_sh
 
          dA=  DZ*9.81*( tn(i,k)-t(i,k) + 0.608*(qo(i,k)-q(i,k)))/dtime
          AA0(I)=AA0(I)+dA
-100     CONTINUE
+      end do
+      end do
+!100     CONTINUE
 
    END SUBROUTINE cup_up_aa1bl
 !----------------------------------------------------------------------
@@ -7533,19 +7539,20 @@ END subroutine lusolver
    ENDDO
    IF(cape_formulation == 1) then
 
-       DO 100 k=kts+1,ktf
-        DO 100 i=its,itf
-         IF(ierr(i).ne.0)GO TO 100
-         IF(K.LT.KBCON(I))GO TO 100
-         IF(K.Gt.KTOP(I))GO TO 100
+       DO k=kts+1,ktf
+        DO i=its,itf
+         IF(ierr(i).ne.0) cycle!GO TO 100
+         IF(K.LT.KBCON(I)) cycle!GO TO 100
+         IF(K.Gt.KTOP(I)) cycle!GO TO 100
          DZ=Z(I,K)-Z(I,K-1)
          daa0=  DZ*(9.81/(1004.*( &
                 (T_cup(I,K)))))*DBY(I,K-1)/ &
              (1.+GAMMA_CUP(I,K))
-         IF(K.eq.KTOP(I).and.daa0.le.0.)go to 100
+         IF(K.eq.KTOP(I).and.daa0.le.0.) cycle !go to 100
          AA0(I)=AA0(I)+daa0
          if(aa0(i).lt.0.)aa0(i)=0.
-       100     continue
+       end do
+       end do
 
    ELSEIF(cape_formulation == 2) then
 

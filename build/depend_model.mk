@@ -580,7 +580,7 @@ rtimh_rk.o : $(MODEL)/rtimh_rk.F90 rtimh.o mem_basic.o mem_cuparm.o \
 	ChemSourcesDriver.o ChemDryDepDriver.o chemistry.o ModTimeStamp.o ModGrid.o \
 	raco.o rthrm.o module_rams_microphysics_2M.o mic_thompson_driver.o\
    seasalt.o MatrixDriver.o rtm_driver.o radvc_rk.o modIau.o leaf3_ocean_only.o \
-	mic_wsm_driver.o $(JULES_OBJ_SFCLYR) \
+	mic_wsm_driver.o modSfire.o $(JULES_OBJ_SFCLYR) \
 	ModMessageSet.o $(UTILS_INCS)/i8.h $(UTILS_INCS)/tsNames.h
 	@cp -f $< $(<F:.f90=.f90)
 	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
@@ -1279,12 +1279,28 @@ MAPL_Constants.o : $(CUPARM)/MAPL_Constants.F90
 	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src
 
-Henrys_Law_cts.o : $(CUPARM)/Henrys_Law_cts.F90
+modConstants.o : $(CUPARM)/modConstants.F90
 	@cp -f $< $(<F:.f90=.f90)
 	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src
 
-ConvPar_GF_GEOS5.o : $(CUPARM)/ConvPar_GF_GEOS5.F90 module_gate.o  MAPL_Constants.o Henrys_Law_cts.o
+modGate.o : $(CUPARM)/modGate.F90
+	@cp -f $< $(<F:.f90=.f90)
+	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
+	@mv -f $(<F:.f90=.f90) ../doc/src
+
+modHenrysLawCts.o : $(CUPARM)/modHenrysLawCts.F90
+	@cp -f $< $(<F:.f90=.f90)
+	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
+	@mv -f $(<F:.f90=.f90) ../doc/src
+
+modConvParGF.o : $(CUPARM)/modConvParGF.F90 modGate.o modHenrysLawCts.o modConstants.o \
+	modVector.o
+	@cp -f $< $(<F:.f90=.f90)
+	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
+	@mv -f $(<F:.f90=.f90) ../doc/src
+
+modVector.o: $(CUPARM)/modVector.F90
 	@cp -f $< $(<F:.f90=.f90)
 	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src
@@ -1295,7 +1311,7 @@ cup_grell3.o : $(CUPARM)/cup_grell3.F90  Phys_const.o mem_jules.o \
 	mem_scalar.o mem_scratch.o mem_scratch1_grell.o mem_tconv.o \
 	mem_tend.o mem_turb.o micphys.o node_mod.o rconstants.o module_cu_g3.o \
 	module_cu_gd_fim.o var_tables.o mem_carma.o module_cu_gf.o \
-	module_cu_gf_v5.1.o ModGrid.o ModMessageSet.o ConvPar_GF_GEOS5.o
+	module_cu_gf_v5.1.o ModGrid.o ModMessageSet.o modConvParGF.o  #ConvPar_GF_GEOS5.o
 	@cp -f $< $(<F:.F90=.F90)
 	$(F_COMMAND) -D$(AER) $(<F:.F90=.F90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src
@@ -2581,4 +2597,6 @@ modPrintInitial.o : $(INIT)/modPrintInitial.F90 dump.o
 	@mv -f $(<F:.f90=.f90) ../doc/src
 
 include jules_depend_model.mk
+
+include sfire_depend_model.mk
 

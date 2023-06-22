@@ -10,7 +10,7 @@ module mod_leaf3_ocean_only
 
   use mem_grid, only:   ngrid,ngrids
   use cuparm_grell3,    only : g3d_g
-  use convpar_gf_geos5, only : use_gustiness
+  use modConvParGF, only : use_gustiness
 
   real, allocatable, dimension(:,:,:) :: can_temp, can_rvap, ustar  ,tstar  ,rstar
   real, allocatable, dimension(:,:)   :: sflux_t ,sflux_r
