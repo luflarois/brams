@@ -230,44 +230,71 @@ subroutine ndvi_write(ifm,ivt)
   implicit none
 
   include "files.h"
-
+  include "UseVfm.h"
+  
   integer :: ifm,ivt,ip
-
+  integer :: ios
   real :: glatr,glonr
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
-
+  character(len=*), parameter :: h="**(ndvi_write)**"
+  
   ! Write ndvi data to ndvi file for one grid and one time
 
   write(cgrid,'(a1,i1)') 'g',ifm
 
-  call makefnam(flnm,ndvifpfx,0.,iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
-       ,idatevn(ivt,ifm),ihourvn (ivt,ifm)*10000,'N',cgrid,'vfm')
+  if (useVfm) then
+     call makefnam(flnm,ndvifpfx,0.,iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
+          ,idatevn(ivt,ifm),ihourvn (ivt,ifm)*10000,'N',cgrid,'vfm')
+  else
+     call makefnam(flnm,ndvifpfx,0.,iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
+          ,idatevn(ivt,ifm),ihourvn (ivt,ifm)*10000,'N',cgrid,'bin')
+  end if
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
-  rewind 25
-
-  write(25,99) 999999,2
-99 format(2i8)
-
-  write(25,100) iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
-       ,idatevn(ivt,ifm),ihourvn (ivt,ifm)
-100 format(1x,i4.4,2(1x,i2.2),1x,i4.4)
-
-  write(25,101) nnxp(ifm),nnyp(ifm),npatch
-101 format(4i5)
-
-  write(25,102) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
-       ,glatr,glonr
-102 format(6f16.5)
-
-  do ip = 1,npatch
-     call vforec(25,sfcfile_p(ifm)%veg_ndvif(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
-  enddo
-
-  close(25)
-
+  if (useVfm) then
+     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
+     rewind 25
+     
+     write(25,99) 999999,2
+99   format(2i8)
+     
+     write(25,100) iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
+          ,idatevn(ivt,ifm),ihourvn (ivt,ifm)
+100  format(1x,i4.4,2(1x,i2.2),1x,i4.4)
+     
+     write(25,101) nnxp(ifm),nnyp(ifm),npatch
+101  format(4i5)
+     
+     write(25,102) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+          ,glatr,glonr
+102  format(6f16.5)
+     
+     do ip = 1,npatch
+        call vforec(25,sfcfile_p(ifm)%veg_ndvif(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
+     enddo
+     
+     close(25)
+     
+  else
+     open(25, action="write", file=trim(flnm), form="unformatted", iostat=ios)
+     if (ios /= 0) then
+        call fatal_error(h//" opening file "//trim(flnm))
+     end if
+     rewind 25
+     
+     write(25) 999999,2
+     write(25) iyearvn(ivt,ifm),imonthvn(ivt,ifm) &
+          ,idatevn(ivt,ifm),ihourvn (ivt,ifm)
+     write(25) nnxp(ifm),nnyp(ifm),npatch
+     write(25) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+          ,glatr,glonr
+     do ip = 1,npatch
+        write(25) sfcfile_p(ifm)%veg_ndvif(:,:,ip)
+     enddo
+     
+     close(25)
+  end if
   return
 end subroutine ndvi_write

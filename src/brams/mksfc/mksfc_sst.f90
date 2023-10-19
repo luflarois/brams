@@ -215,44 +215,68 @@ subroutine sst_write(ifm,ivt)
   implicit none
 
   include "files.h"
-
+  include "UseVfm.h"
   integer :: ifm,ivt,i,j
-
+  integer :: ios
+  
   real :: glatr,glonr
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
-
+  character(len=*), parameter :: h="**(sst_write)**"
+  
   ! Write sst data to sst file for one grid and one time
   write(cgrid,'(a1,i1)') 'g',ifm
-  call makefnam(flnm,sstfpfx,0.,iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
-       ,idatevs(ivt,ifm),ihourvs (ivt,ifm)*10000,'W',cgrid,'vfm')
+
+    if (useVfm) then
+       call makefnam(flnm,sstfpfx,0.,iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
+            ,idatevs(ivt,ifm),ihourvs (ivt,ifm)*10000,'W',cgrid,'vfm')
+    else
+       call makefnam(flnm,sstfpfx,0.,iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
+            ,idatevs(ivt,ifm),ihourvs (ivt,ifm)*10000,'W',cgrid,'bin')
+    end if
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
-  rewind 25
+    if (useVfm) then
 
-  write(25,99) 999999,2
-  write(25,100) iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
-       ,idatevs(ivt,ifm),ihourvs (ivt,ifm)
-  write(25,101) nnxp(ifm),nnyp(ifm)
-  write(25,102) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
-       ,glatr,glonr
+       call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
+       rewind 25
+       
+       write(25,99) 999999,2
+       write(25,100) iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
+            ,idatevs(ivt,ifm),ihourvs (ivt,ifm)
+       write(25,101) nnxp(ifm),nnyp(ifm)
+       write(25,102) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+            ,glatr,glonr
+       
+99     format(2i8)
+100    format(1x,i4.4,2(1x,i2.2),1x,i4.4)
+101    format(4i5)
+102    format(6f16.5)
+       
+       call vforec(25,sfcfile_p(ifm)%seatf,nnxp(ifm)*nnyp(ifm),24,scrx,'LIN')
 
-99 format(2i8)
-100 format(1x,i4.4,2(1x,i2.2),1x,i4.4)
-101 format(4i5)
-102 format(6f16.5)
+       close(25)
 
-  call vforec(25,sfcfile_p(ifm)%seatf(1,1),nnxp(ifm)*nnyp(ifm),24,scrx,'LIN')
 
-  !do j=1,nnyp(ifm)
-  !do i=1,nnxp(ifm)
-  !print*,i,j,sfcfile_p(ifm)%seatf(i,j)
-  !enddo
-  !enddo
+    else
 
-  close(25)
-
+       open(25, action="write", file=trim(flnm), form="unformatted", iostat=ios)
+       if (ios /= 0) then
+          call fatal_error(h//" opening file "//trim(flnm))
+       end if
+       rewind 25
+       
+       write(25) 999999,2
+       write(25) iyearvs(ivt,ifm),imonthvs(ivt,ifm) &
+            ,idatevs(ivt,ifm),ihourvs (ivt,ifm)
+       write(25) nnxp(ifm),nnyp(ifm)
+       write(25) deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+            ,glatr,glonr
+       
+       write(25) sfcfile_p(ifm)%seatf
+       
+       close(25)
+    end if
   return
 end subroutine sst_write

@@ -26,6 +26,7 @@ subroutine top_check(ifm,ierr)
   implicit none
 
   integer :: ifm,ierr
+  integer :: ios
 
   integer :: lc,isfc_marker,isfc_ver,nsfx,nsfy  &
        ,nsitoptflg,nsitopsflg,nsiz0flg
@@ -33,14 +34,21 @@ subroutine top_check(ifm,ierr)
        ,sz0max,sz0fact,glatr,glonr
 
   include "files.h"
+  include "UseVfm.h"
 
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
   logical there
-
+  character(len=*), parameter :: h="**(top_check)**"
+  
   lc=len_trim(topfiles)
   write(cgrid,'(a1,i1)') 'g',ifm
-  flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+
+  if (useVfm) then
+     flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+  else
+     flnm=trim(topfiles)//'-S-'//cgrid//'.bin'
+  end if
 
   inquire(file=flnm(1:len_trim(flnm)),exist=there)
 
@@ -53,14 +61,28 @@ subroutine top_check(ifm,ierr)
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+  if (useVfm) then
+     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
 
-  read (25,*) isfc_marker,isfc_ver
-  read (25,*) nsfx,nsfy  &
-       ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
-  read (25,*) nsitoptflg  &
-       ,nsitopsflg,stoptenh,stoptwvl,nsiz0flg,sz0max,sz0fact
-  close (25)
+     read (25,*) isfc_marker,isfc_ver
+     read (25,*) nsfx,nsfy  &
+          ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     read (25,*) nsitoptflg  &
+          ,nsitopsflg,stoptenh,stoptwvl,nsiz0flg,sz0max,sz0fact
+     close (25)
+
+  else
+     open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+     if (ios /= 0) then
+        call fatal_error(h//" failure opening file "//trim(flnm))
+     end if
+     read (25) isfc_marker,isfc_ver
+     read (25) nsfx,nsfy  &
+          ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     read (25) nsitoptflg  &
+          ,nsitopsflg,stoptenh,stoptwvl,nsiz0flg,sz0max,sz0fact
+     close (25)
+  end if
 
 
   if (nsfx                       .ne. nnxp(ifm)     .or.  &
@@ -150,41 +172,66 @@ subroutine top_write(ifm)
   implicit none
 
   include "files.h"
+  include "UseVfm.h"
 
   integer :: ifm,ip,k,i,j
+  integer :: ios
   real :: glatr,glonr
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
+  character(len=*), parameter :: h="**(top_write)**"
 
   !     write surface characteristics, one file for each grid
 
   write(cgrid,'(a1,i1)') 'g',ifm
 
-  flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+  if (useVfm) then
+     flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+  else
+     flnm=trim(topfiles)//'-S-'//cgrid//'.bin'
+  end if
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open (25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
-  rewind 25
+  if (useVfm) then
+     call rams_f_open (25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
+     rewind 25
 
-  write(25,fmt='(2(i8))') 999999,3
-!99 format(2i8)
+     write(25,99) 999999,3
+99   format(2i8)
 
-  write(25,100) nnxp(ifm),nnyp(ifm)  &
-       ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
-       ,glatr,glonr
-100 format(2i5,2f15.5,4f11.5)
+     write(25,100) nnxp(ifm),nnyp(ifm)  &
+          ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+          ,glatr,glonr
+100  format(2i5,2f15.5,4f11.5)
 
-  write(25,101) itoptflg(ifm),itopsflg(ifm),toptenh(ifm),toptwvl(ifm)  &
-       ,iz0flg(ifm),z0max(ifm),z0fact
-101 format(2i5,2f11.5,i5,2f11.5)
+     write(25,101) itoptflg(ifm),itopsflg(ifm),toptenh(ifm),toptwvl(ifm)  &
+          ,iz0flg(ifm),z0max(ifm),z0fact
+101  format(2i5,2f11.5,i5,2f11.5)
 
 
-  call vforec(25,sfcfile_p(ifm)%topt(1,1),nnxyp(ifm),24,scrx,'LIN')
-  call vforec(25,sfcfile_p(ifm)%topzo(1,1),nnxyp(ifm),24,scrx,'LIN')
+     call vforec(25,sfcfile_p(ifm)%topt,nnxyp(ifm),24,scrx,'LIN')
+     call vforec(25,sfcfile_p(ifm)%topzo,nnxyp(ifm),24,scrx,'LIN')
 
-  close(25)
+     close(25)
 
+  else
+     open(25, action="write", file=trim(flnm), form="unformatted", iostat=ios)
+     if (ios /= 0) then
+        call fatal_error(h//" failure opening file "//trim(flnm))
+     end if
+     write(25) 999999,3
+     write(25) nnxp(ifm),nnyp(ifm)  &
+          ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+          ,glatr,glonr
+     write(25) itoptflg(ifm),itopsflg(ifm),toptenh(ifm),toptwvl(ifm)  &
+          ,iz0flg(ifm),z0max(ifm),z0fact
+
+     write(25) sfcfile_p(ifm)%topt
+     write(25) sfcfile_p(ifm)%topzo
+
+     close(25)
+  end if
   return
 end subroutine top_write
 
@@ -193,7 +240,7 @@ end subroutine top_write
 
 subroutine TopReadStoreOwnChunk(ifm)
   use dump,only: &
-    dumpMessage
+       dumpMessage
 
   use mem_grid, only: &
        grid_g
@@ -212,6 +259,8 @@ subroutine TopReadStoreOwnChunk(ifm)
 
   include "files.h"
   include "constants.f90"
+  include "UseVfm.h"
+
   integer, intent(in) :: ifm
 
   character(len=f_name_length) :: flnm
@@ -219,6 +268,7 @@ subroutine TopReadStoreOwnChunk(ifm)
   character(len=1) :: dummy
   logical :: there
   integer :: ierr
+  integer :: ios
   character(len=8) :: c0
   character(len=*), parameter :: h="**(TopReadStoreOwnChunk)**"
 
@@ -226,24 +276,42 @@ subroutine TopReadStoreOwnChunk(ifm)
 
   if (mchnum == master_num) then
      write(cgrid,'(a1,i1)') 'g',ifm
-     flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+
+     if (useVfm) then
+        flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+     else
+        flnm=trim(topfiles)//'-S-'//cgrid//'.bin'
+     end if
 
      inquire(file=flnm(1:len_trim(flnm)),exist=there)
 
      if(.not.there) then
         !call fatal_error(h//" file "//trim(flnm)//" not there")
         iErrNumber=dumpMessage(c_tty,c_yes,h,modelVersion,c_fatal, &
-          " file "//trim(flnm)//" not there")
+             " file "//trim(flnm)//" not there")
      endif
 
-     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
-     rewind 25
+     if (useVfm) then
+        call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+        rewind 25
 
-     ! Skip header records (already checked)
+        ! Skip header records (already checked)
 
-     read(25,*) dummy
-     read(25,*) dummy
-     read(25,*) dummy
+        read(25,*) dummy
+        read(25,*) dummy
+        read(25,*) dummy
+     else
+        open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+        if (ios /= 0) then
+           call fatal_error(h//" failure opening file "//trim(flnm))
+        end if
+        rewind 25
+        ! Skip header records (already checked)
+
+        read(25) dummy
+        read(25) dummy
+        read(25) dummy
+     end if
 
   end if
 
@@ -254,7 +322,7 @@ subroutine TopReadStoreOwnChunk(ifm)
   call ReadStoreOwnChunk(ifm, 25, grid_g(ifm)%topzo, "topzo")
 
   ! master process close file
-
+  
   if (mchnum == master_num) then
      close (25)
   end if
@@ -267,9 +335,9 @@ end subroutine TopReadStoreOwnChunk
 !--(DMK-LFR NEC-SX6)----------------------------------------------
 !subroutine TopReadStoreFullFieldAndOwnChunk(ifm)
 subroutine TRSFFieldAndOwnChunk(ifm)
-!--(DMK-LFR NEC-SX6)----------------------------------------------
+  !--(DMK-LFR NEC-SX6)----------------------------------------------
   use dump, only: &
-    dumpMessage
+       dumpMessage
 
   use mem_grid, only: &
        grid_g, &
@@ -290,6 +358,8 @@ subroutine TRSFFieldAndOwnChunk(ifm)
   implicit none
   include "files.h"
   include "constants.f90"
+  include "UseVfm.h"
+
   integer, intent(in) :: ifm
 
   character(len=f_name_length) :: flnm
@@ -297,48 +367,71 @@ subroutine TRSFFieldAndOwnChunk(ifm)
   character(len=1) :: dummy
   logical :: there
   integer :: ierr
+  integer :: ios
   character(len=8) :: c0
 
-!--(DMK-LFR NEC-SX6)----------------------------------------------
-!  character(len=*), parameter :: h="**(TopReadStoreFullFieldAndOwnChunk)**"
+  !--(DMK-LFR NEC-SX6)----------------------------------------------
+  !  character(len=*), parameter :: h="**(TopReadStoreFullFieldAndOwnChunk)**"
   character(len=*), parameter :: h="**(TRSFFieldAndOwnChunk)**"
-!--(DMK-LFR NEC-SX6)----------------------------------------------
+  !--(DMK-LFR NEC-SX6)----------------------------------------------
 
   ! master opens file
 
   if (mchnum == master_num) then
      write(cgrid,'(a1,i1)') 'g',ifm
-     flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+
+     if (useVfm) then
+        flnm=trim(topfiles)//'-S-'//cgrid//'.vfm'
+     else
+        flnm=trim(topfiles)//'-S-'//cgrid//'.bin'
+     end if
 
      inquire(file=flnm(1:len_trim(flnm)),exist=there)
 
      if(.not.there) then
         !call fatal_error(h//" file "//trim(flnm)//" not there")
         iErrNumber=dumpMessage(c_tty,c_yes,h,modelVersion,c_fatal, &
-          " file "//trim(flnm)//" not there")
+             " file "//trim(flnm)//" not there")
      endif
+     if (useVfm) then
 
-     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
-     rewind 25
+        call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+        rewind 25
 
-     ! Skip header records (already checked)
+        ! Skip header records (already checked)
 
-     read(25,*) dummy
-     read(25,*) dummy
-     read(25,*) dummy
+        read(25,*) dummy
+        read(25,*) dummy
+        read(25,*) dummy
+
+     else
+
+        open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+        if (ios /= 0) then
+           call fatal_error(h//" failure opening file "//trim(flnm))
+        end if
+        rewind 25
+        ! Skip header records (already checked)
+
+        read(25) dummy
+        read(25) dummy
+        read(25) dummy
+
+     end if
+
 
   end if
 
   ! master reads twice and broadcast full domain;
   ! local chunk is extracted and stored at desired variable
-!  print *,'LFR->DGB: inside mksfc - before ReadStore I', mynum,nodemxp(mynum,1); call flush(6)
-!  print *,'LFR->DGB: inside mksfc -',ifm,size(grid_g(ifm)%topta,1),size(grid_g(ifm)%topta,2) &
-!    ,size(oneGlobalGridData(ifm)%global_topta,1),size(oneGlobalGridData(ifm)%global_topta,2)
-!  call flush(6)
+  !  print *,'LFR->DGB: inside mksfc - before ReadStore I', mynum,nodemxp(mynum,1); call flush(6)
+  !  print *,'LFR->DGB: inside mksfc -',ifm,size(grid_g(ifm)%topta,1),size(grid_g(ifm)%topta,2) &
+  !    ,size(oneGlobalGridData(ifm)%global_topta,1),size(oneGlobalGridData(ifm)%global_topta,2)
+  !  call flush(6)
 
   call ReadStoreFullFieldAndOwnChunk(ifm, 25, oneGlobalGridData(ifm)%global_topta, grid_g(ifm)%topta, "topta")
 
-!  print *,'LFR->DGB: ','after ReadStore', mynum,nodemxp(mynum,1); call flush(6)
+  !  print *,'LFR->DGB: ','after ReadStore', mynum,nodemxp(mynum,1); call flush(6)
 
   call ReadStoreOwnChunk(ifm, 25, grid_g(ifm)%topzo, "topzo")
 
@@ -348,7 +441,7 @@ subroutine TRSFFieldAndOwnChunk(ifm)
      close (25)
   end if
 
-!--(DMK-LFR NEC-SX6)----------------------------------------------
-!end subroutine TopReadStoreFullFieldAndOwnChunk
+  !--(DMK-LFR NEC-SX6)----------------------------------------------
+  !end subroutine TopReadStoreFullFieldAndOwnChunk
 end subroutine TRSFFieldAndOwnChunk
 !--(DMK-LFR NEC-SX6)----------------------------------------------

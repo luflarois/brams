@@ -149,7 +149,8 @@ module ModVarfFile
 
   include "files.h"
   include "i8.h"
-
+  include "UseVfm.h" 
+  
   private
   public :: VarfReadStoreOwnChunk
 
@@ -313,17 +314,16 @@ contains
        endif
 
        ! Compute weighting factors for grid 1
-       call VariableWeight(nnzp(1), nodemxp(mynum,1), nodemyp(mynum,1), nnxp(1),&
-            nnyp(1), nodei0(mynum,1), nodej0(mynum,1),  &
-            grid_g(1)%topt(1,1), grid_g(1)%rtgt(1,1), varinit_g(1)%varwts(1,1,1),&
-!srf 
-            varwts_for_operations_only)
-
-       if(chem_assim == 1 .and. chemistry >= 0) &
-            call VariableWeightChem(nnzp(1), nodemxp(mynum,1), nodemyp(mynum,1), nnxp(1),&
-            nnyp(1), nodei0(mynum,1), nodej0(mynum,1),  &
-            grid_g(1)%topt(1,1), grid_g(1)%rtgt(1,1), &
-            varinit_g(1)%varwts_chem(1,1,1))
+      call VariableWeight(nnzp(1), nodemxp(mynum,1), nodemyp(mynum,1), nnxp(1),&
+          nnyp(1), nodei0(mynum,1), nodej0(mynum,1),  &
+         grid_g(1)%topt(1,1), grid_g(1)%rtgt(1,1), varinit_g(1)%varwts(1,1,1),&
+         varwts_for_operations_only)
+      if(chem_assim == 1 .and. chemistry >= 0) &
+         call VariableWeightChem(nnzp(1), nodemxp(mynum,1), nodemyp(mynum,1), nnxp(1),&
+         nnyp(1), nodei0(mynum,1), nodej0(mynum,1),  &
+         grid_g(1)%topt(1,1), grid_g(1)%rtgt(1,1), &
+         varinit_g(1)%varwts_chem(1,1,1),&
+         varwts_for_operations_only)
        
        ! Read files
 
@@ -755,7 +755,7 @@ contains
     integer, allocatable, dimension(:)	:: nnxp1
     integer, allocatable, dimension(:)	:: nnyp1
     integer, allocatable, dimension(:)	:: nnzp1
-    integer :: nm
+    integer :: nm, ios
 
     real, allocatable, dimension(:) 	:: platn1
     real, allocatable, dimension(:) 	:: plonn1
@@ -825,7 +825,12 @@ contains
        if(initialFlag .eq. 2)then
           !--(DMK-CCATT-FIM)-----------------------------------------------------
 
-          write(cgrid,'(a2,i1,a4)') '-g',ngrid,'.vfm'
+          if (useVfm) then
+             write(cgrid,'(a2,i1,a4)') '-g',ngrid,'.vfm'
+          else
+             write(cgrid,'(a2,i1,a4)') '-g',ngrid,'.bin'
+          end if
+
           nc=len_trim(fnames_varf(nvarffl))
           flnm=fnames_varf(nvarffl)(1:nc-4)//trim(cgrid)
 
@@ -895,24 +900,48 @@ contains
           write (unit=42,fmt='(a,2x,f10.0,2x,a)') ' time (s)', time,trim(flnm(1:len_trim(flnm)))
 	  write(unit=42,fmt='(A)') "======================================================================="
      close(unit=42)
-	  
-          call rams_f_open(iun,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
 
-          ! Find varfile "version"
+          if (useVfm) then
+             call rams_f_open(iun,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
 
-          read(iun,*) imarker
-          rewind(iun)
+             ! Find varfile "version"
 
-          if(imarker == 999999) then
-             read(iun,*) imarker,iver_var
+             read(iun,*) imarker
+             rewind(iun)
+
+             if(imarker == 999999) then
+                read(iun,*) imarker,iver_var
+             else
+                iver_var=1
+             end if
+             
+             read(iun,*) iyearx,imonthx,idatex,ihourx  &
+                  ,nxpx,nypx,nzpx,rlatx,wlon1x,deltaxx,deltayx,deltazx  &
+                  ,dzratx,dzmaxx
+
           else
-             iver_var=1
-          end if
+             open(iun, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+             if (ios /= 0) then
+                call fatal_error(h//" failure opening file "//trim(flnm))
+             end if
 
-          read(iun,*) iyearx,imonthx,idatex,ihourx  &
+             ! Find varfile "version"
+
+             read(iun) imarker
+             rewind(iun)
+
+             if(imarker == 999999) then
+                read(iun) imarker,iver_var
+             else
+                iver_var=1
+             end if
+
+             read(iun) iyearx,imonthx,idatex,ihourx  &
                ,nxpx,nypx,nzpx,rlatx,wlon1x,deltaxx,deltayx,deltazx  &
                ,dzratx,dzmaxx
 
+          end if
+     
           if(nxp.ne.nxpx.or.  &
                nyp.ne.nypx.or.  &
                nzp.ne.nzpx.or.  &
@@ -946,7 +975,13 @@ contains
           !--(DMK-CCATT-INI)-----------------------------------------------------
           !- test if the source data is for the chemical mechanism that will be used:
           if (chem_assim == 1 .and. chemistry >= 0) then
-             read(iun,*)  chemical_mechanism_test
+
+             if (useVfm) then
+                read(iun,*)  chemical_mechanism_test
+             else
+                read(iun)  chemical_mechanism_test
+             end if
+
              if(trim( chemical_mechanism_test ) /=  trim(chemical_mechanism)) then
                 call fatal_error(h//" Wrong Chem mechanism in Varfiles. Expected="// &
                      trim(chemical_mechanism(1:len_trim(chemical_mechanism)))//" Read="// &
@@ -1020,14 +1055,28 @@ contains
        if(initflag == 1 .and. iver_var == 2) then
           ! Extract snow depth from the varfile. Ignore other 2D fields for now.
           if (mchnum == master_num) then
-             call vfirec(iun,scratch,nxyp,'LIN')
-             call vfirec(iun,scratch,nxyp,'LIN')
-             call vfirec(iun,scratch,nxyp,'LIN')
+
+             if (useVfm) then
+                call vfirec(iun,scratch,nxyp,'LIN')
+                call vfirec(iun,scratch,nxyp,'LIN')
+                call vfirec(iun,scratch,nxyp,'LIN')
+             else
+                read(iun) scratch
+                read(iun) scratch
+                read(iun) scratch
+             end if
+
           end if
           call ReadStoreOwnChunk(ngrid, iun, leaf_g(ngrid)%snow_mass, "snow_mass")
 
           if (mchnum == master_num) then
-             call vfirec(iun,scratch,nxyp,'LIN')
+
+             if (useVfm) then
+                call vfirec(iun,scratch,nxyp,'LIN')
+             else
+                read(iun) scratch
+             end if
+
              close(iun)
           end if
        end if
@@ -1067,10 +1116,10 @@ contains
              stop 'LEAF hist-init'
           endif
 
-       end if
-
             iTime1=int(time1)
             iZtop1=int(ztop1)
+       end if
+
        call Broadcast(ngrids1(1), master_num, 'ngrids1(1)')
        call Broadcast(nnxp1, master_num,   'nnxp1' )
        call Broadcast(nnyp1, master_num,   'nnyp1' )

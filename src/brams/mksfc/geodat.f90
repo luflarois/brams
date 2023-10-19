@@ -159,7 +159,7 @@ subroutine sfcopqr(no, mof, np, niq, njq, n2, n3, xt, yt, platn, plonn, &
   if (ierr/=0) call fatal_error("Error allocating iso")
   allocate (iwo(mof), STAT=ierr)
   if (ierr/=0) call fatal_error("Error allocating iwo")
-
+  print *, '###'
   nmiss  = 0
 
   nono   = no*no
@@ -171,7 +171,7 @@ subroutine sfcopqr(no, mof, np, niq, njq, n2, n3, xt, yt, platn, plonn, &
      ISO(IOF) = 0
      IWO(IOF) = 0
   enddo
-
+  print *, 'Inside sfcopqr ',vnam,NJQ,NIQ,NP
   do JQ=1,NJQ
      do IQ=1,NIQ
         XQ = (FLOAT(IQ)-0.5*FLOAT(NIQ+1))*DELTAXQ + XCENTR
@@ -244,7 +244,7 @@ subroutine sfcopqr(no, mof, np, niq, njq, n2, n3, xt, yt, platn, plonn, &
                  LB     = len_trim(TITLE3)
 !!$                 print *, "DEBUG-ALF:LB,trim(TITLE3)=",LB,trim(TITLE3) 
                  inquire(FILE=TITLE3(1:LB), EXIST=L1)
-!!$                 print *, "DEBUG-ALF:EXIST?=", L1, " OPENED?=", L2
+                 if(L1) print *, "DEBUG-ALF:EXIST?=", TITLE3(1:LB),L1
                  if (.not.L1) then
                     do nn=1,nmiss
                        if (TITLE3(1:LB)==fnmiss(nn)) goto 302
@@ -1389,7 +1389,7 @@ subroutine geodat_var_opt(n2, n3, datr, hfn, ofn, vt2da, vt2db, ngr, vnam)
      datrx= 0.0
      do itpx=2,max_number_toptwvl
    	   if(TOPTWVLX(itpx) == 0.0) CYCLE
-   	   print*,'gerando topo para TOPTWVL=',TOPTWVLX(itpx)
+   	   print*,'gerando topo para TOPTWVL=',itpx,TOPTWVLX(itpx)
    	   !	 temp grid (Q) - smoothing only applied to topo
    	      !DELTAXQ = 0.5*abs(TOPTWVL(NGR))*DELTAXN(NGR)
    	      !DELTAYQ = 0.5*abs(TOPTWVL(NGR))*DELTAYN(NGR)
@@ -1402,13 +1402,15 @@ subroutine geodat_var_opt(n2, n3, datr, hfn, ofn, vt2da, vt2db, ngr, vnam)
    	   NP	   = min(10, max(1,int(DELTAXQ/(DELTALLO*111000.))))
    	   DELTAXP = DELTAXQ/FLOAT(NP)
    	   DELTAYP = DELTAYQ/FLOAT(NP)
-
+         print*,'#'
    	   call SFCOPQR(NO, MOF, NP, NIQ, NJQ, N2, N3, XTN(1,NGR), YTN(1,NGR), &
    		platn(ngr), plonn(ngr), 				       &
    		ERAD, DELTALLO, DELTAXP, DELTAYP, DELTAXQ, DELTAYQ, IBLKSIZO,  &
    		ISBEGO, IWBEGO, DATO(1), VT2DA, VT2DB, DATRX(ITPX,:,:), 	       &
    		OFN, offlat, offlon, VNAM, NGR, itopsflg(ngr), iz0flg(ngr))
+         print*,'##'
      enddo
+     print*,'topo para TOPTWVL ',max_number_toptwvl, ' gerado ...'
      call datrx2datr(ngr,n2,n3,max_number_toptwvl,TOPTWVLX,DATRX,DATR)
      deallocate(datrx)
 

@@ -31,14 +31,20 @@ subroutine sfc_check(ifm,ierr)
   real ::  sfdx,sfdy,sfplat,sfplon,sflat,sflon,glatr,glonr
 
   include "files.h"
+  include "UseVfm.h"
 
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
   logical there
-
+  integer :: ios
+  
   lc=len_trim(sfcfiles)
   write(cgrid,'(a1,i1)') 'g',ifm
-  flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+  if (useVfm) then
+     flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+  else
+     flnm=trim(sfcfiles)//'-S-'//cgrid//'.bin'
+  end if
 
   inquire(file=flnm(1:len_trim(flnm)),exist=there)
 
@@ -51,16 +57,25 @@ subroutine sfc_check(ifm,ierr)
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+  if (useVfm) then
 
-  read (25,*) isfc_marker,isfc_ver
-  read (25,100) nsfx,nsfy,nsfzg,nspatch  &
-       ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
-  read (25,101) nsivegtflg,nsisoilflg,nsnofilflg
-100 format(4i5,2f15.5,4f11.5)
-101 format(5i5,2f11.5,i5,2f11.5)
-  close (25)
+     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+     read (25,*) isfc_marker,isfc_ver
+     read (25,100) nsfx,nsfy,nsfzg,nspatch  &
+          ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     read (25,101) nsivegtflg,nsisoilflg,nsnofilflg
+100  format(4i5,2f15.5,4f11.5)
+101  format(5i5,2f11.5,i5,2f11.5)
+     close (25)
+  else
 
+     open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+     read (25) isfc_marker,isfc_ver
+     read (25) nsfx,nsfy,nsfzg,nspatch  &
+          ,sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     read (25) nsivegtflg,nsisoilflg,nsnofilflg
+     close (25)
+  end if
 
   if (nsfx                       .ne. nnxp(ifm)     .or.  &
        nsfy                       .ne. nnyp(ifm)     .or.  &
@@ -120,49 +135,89 @@ subroutine sfc_write(ifm)
   implicit none
 
   include "files.h"
-
+  include "UseVfm.h"
+  
   integer :: ifm,ip,k,i,j
+  integer :: ios
   real :: glatr,glonr
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
-
+  character(len=*), parameter :: h="**(sfc_write)**"
+  
   !     write surface characteristics, one file for each grid
 
 
   write(cgrid,'(a1,i1)') 'g',ifm
 
-  flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+  if (useVfm) then
+     flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+  else
+     flnm=trim(sfcfiles)//'-S-'//cgrid//'.bin'
+  end if
+
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open (25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
-  rewind 25
 
-  write(25,99) 999999,3
-99 format(2i8)
+    if (useVfm) then
+       call rams_f_open (25,flnm(1:len_trim(flnm)),'FORMATTED','REPLACE','WRITE',1)
+       rewind 25
+       
+       write(25,99) 999999,3
+99     format(2i8)
 
-  write(25,100) nnxp(ifm),nnyp(ifm),nzg,npatch  &
-       ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
-       ,glatr,glonr
-100 format(4i5,2f15.5,4f11.5)
+       write(25,100) nnxp(ifm),nnyp(ifm),nzg,npatch  &
+            ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+            ,glatr,glonr
+100    format(4i5,2f15.5,4f11.5)
 
-  write(25,101) ivegtflg(ifm),isoilflg(ifm),nofilflg(ifm)
-101 format(3i5)
+       write(25,101) ivegtflg(ifm),isoilflg(ifm),nofilflg(ifm)
+101    format(3i5)
 
 
-  do ip = 1,npatch
-     call vforec(25,sfcfile_p(ifm)%patch_area(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
-  enddo
+       do ip = 1,npatch
+          call vforec(25,sfcfile_p(ifm)%patch_area(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
+       enddo
 
-  do ip = 1,npatch
-     call vforec(25,sfcfile_p(ifm)%leaf_class(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
-  enddo
+       do ip = 1,npatch
+          call vforec(25,sfcfile_p(ifm)%leaf_class(1,1,ip),nnxyp(ifm),24,scrx,'LIN')
+       enddo
+          
+       do ip = 1,npatch
+          call vforec(25,sfcfile_p(ifm)%soil_text(1,1,1,ip),nzg*nnxyp(ifm),24,scrx,'LIN')
+       enddo
 
-  do ip = 1,npatch
-     call vforec(25,sfcfile_p(ifm)%soil_text(1,1,1,ip),nzg*nnxyp(ifm),24,scrx,'LIN')
-  enddo
+       close(25)
 
-  close(25)
+    else
+
+       open(25, action="write", file=trim(flnm), form="unformatted", iostat=ios)
+       if (ios /= 0) then
+          call fatal_error(h//" opening file "//trim(flnm))
+       end if
+       
+       write(25) 999999,3
+
+       write(25) nnxp(ifm),nnyp(ifm),nzg,npatch  &
+            ,deltaxn(ifm),deltayn(ifm),platn(ifm),plonn(ifm)  &
+            ,glatr,glonr
+
+       write(25) ivegtflg(ifm),isoilflg(ifm),nofilflg(ifm)
+
+       do ip = 1,npatch
+          write(25) sfcfile_p(ifm)%patch_area(:,:,ip)
+       enddo
+
+       do ip = 1,npatch
+          write(25) sfcfile_p(ifm)%leaf_class(:,:,ip)
+       enddo
+       
+       do ip = 1,npatch
+          write(25) sfcfile_p(ifm)%soil_text(:,:,:,ip)
+       enddo
+
+       close(25)
+    end if
 
   return
 end subroutine sfc_write
@@ -197,9 +252,11 @@ subroutine SfcReadStoreOwnChunk(ifm)
 
   include "files.h"
   include "constants.f90"
-
+  include "UseVfm.h"
+  
   integer :: ifm
   integer :: ipat
+  integer :: ios
   logical :: there
   character(len=f_name_length) :: flnm
   character(len=2) :: cgrid
@@ -215,7 +272,11 @@ subroutine SfcReadStoreOwnChunk(ifm)
 
   if (mchnum == master_num) then
      write(cgrid,'(a1,i1)') 'g',ifm
-     flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+    if (useVfm) then
+       flnm=trim(sfcfiles)//'-S-'//cgrid//'.vfm'
+    else
+       flnm=trim(sfcfiles)//'-S-'//cgrid//'.bin'
+    end if
 
      inquire(file=flnm(1:len_trim(flnm)),exist=there)
 
@@ -225,13 +286,33 @@ subroutine SfcReadStoreOwnChunk(ifm)
           " file "//trim(flnm)//" not there")
      end if
 
-     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
-     rewind 25
+    if (useVfm) then
 
-     ! Skip header records (already been checked)
-     read(25,*) dummy
-     read(25,*) dummy
-     read(25,*) dummy
+       ! use VFM format
+
+       call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+       rewind 25
+
+       ! Skip header records (already been checked)
+       read(25,*) dummy
+       read(25,*) dummy
+       read(25,*) dummy
+
+    else
+
+       ! use binary format
+    
+       open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+       rewind 25
+
+       ! Skip header records (already been checked)
+       read(25) dummy
+       read(25) dummy
+       read(25) dummy
+
+    end if
+
+
   end if
 
   ! deals with patch_area

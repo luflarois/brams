@@ -28,25 +28,42 @@ subroutine sst_check_header(ifm,flnm,ierr)
   implicit none
 
   include "files.h"
+  include "UseVfm.h"
 
   integer :: ifm,ierr
   character(len=*),intent(in) :: flnm
 
   integer :: iiyear,iimonth,iidate,iihour  &
        ,isfc_marker,isfc_ver,nsfx,nsfy
+  integer :: ios
   real :: sfdx,sfdy,sfplat,sfplon,sflat,sflon,glatr,glonr
-
+  character(len=*), parameter :: h="**(sst_check_header)**"
+  
   ierr = 0
 
   call xy_ll(glatr,glonr,platn(ifm),plonn(ifm),xtn(1,ifm),ytn(1,ifm))
 
-  call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+  if (useVfm) then
 
-  read (25,*) isfc_marker,isfc_ver
-  read (25,*) iiyear,iimonth,iidate,iihour
-  read (25,*) nsfx,nsfy
-  read (25,*) sfdx,sfdy,sfplat,sfplon,sflat,sflon
-  close (25)
+     call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+     read (25,*) isfc_marker,isfc_ver
+     read (25,*) iiyear,iimonth,iidate,iihour
+     read (25,*) nsfx,nsfy
+     read (25,*) sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     close (25)
+
+  else
+
+     open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+     if (ios /= 0) then
+        call fatal_error(h//" error opening file "//trim(flnm))
+     end if
+     read (25) isfc_marker,isfc_ver
+     read (25) iiyear,iimonth,iidate,iihour
+     read (25) nsfx,nsfy
+     read (25) sfdx,sfdy,sfplat,sfplon,sflat,sflon
+     close (25)
+  end if
 
   if (nsfx                   .ne. nnxp(ifm) .or.  &
        nsfy                   .ne. nnyp(ifm) .or.  &
@@ -341,11 +358,11 @@ subroutine SstFileInv(sfilin, ierr)
        nxtnest
 
   use mem_mksfc, only: &
-      nvsstf,          &
-      idatevs,         &
-      ihourvs,         &
-      imonthvs,        &
-      iyearvs       
+       nvsstf,          &
+       idatevs,         &
+       ihourvs,         &
+       imonthvs,        &
+       iyearvs       
 
   use io_params, only: &
        isstcyclic, &     ! intent(out)
@@ -370,6 +387,7 @@ subroutine SstFileInv(sfilin, ierr)
   implicit none
 
   include "files.h"
+  include "UseVfm.h"
 
   character(len=*), intent(IN) :: sfilin
   integer, intent(OUT)           :: ierr
@@ -400,7 +418,7 @@ subroutine SstFileInv(sfilin, ierr)
   character(len=2) :: cgrid2
   character(len=f_name_length) :: flnm
   character(len=*), parameter :: h="**(SstFileInv)**"
-  
+
   ! size and length of data to be broadcasted
 
   sizeIntVec = ngrids+3
@@ -414,14 +432,14 @@ subroutine SstFileInv(sfilin, ierr)
      ! io_params initialization
 
      nsstfiles   = 0
-!     fnames_sst= ""
-!     itotdate_sst= ""
+     !     fnames_sst= ""
+     !     itotdate_sst= ""
      isstcyclic  = 0
      isstcycdata = 0
      ierr        = 0
-     
+
      ! Get abs seconds of run start
-     
+
      call date_abs_secs2(iyear1, imonth1, idate1, itime1*100, secs_init)
 
      ! Go through sst files and make inventory. We unfortunately have to do this
@@ -443,12 +461,12 @@ subroutine SstFileInv(sfilin, ierr)
 
 
         if (isstflg(ng) == 1) then
-          call sst_read_dataheader(ng)
-          nvtime = nvsstf(ng)
+           call sst_read_dataheader(ng)
+           nvtime = nvsstf(ng)
         elseif (isstflg(ng) == 0) then
-          nvtime = nvsstf(nxtnest(ng))
+           nvtime = nvsstf(nxtnest(ng))
         else
-          nvtime = 1
+           nvtime = 1
         end if
 
         indice = 1
@@ -466,10 +484,18 @@ subroutine SstFileInv(sfilin, ierr)
               ihourvs (1:nvsstf(ifm),ifm) = ihourvs (1:nvsstf(ifm),icm)
            endif
 
-           call makefnam(flnm, sfilin, 0., &
-                iyearvs(ivtime,ng), imonthvs(ivtime,ng), &
-                idatevs(ivtime,ng), ihourvs(ivtime,ng)*10000, &
-                'W',cgrid2,'vfm')
+           if (useVfm) then
+              call makefnam(flnm, sfilin, 0., &
+                   iyearvs(ivtime,ng), imonthvs(ivtime,ng), &
+                   idatevs(ivtime,ng), ihourvs(ivtime,ng)*10000, &
+                   'W',cgrid2,'vfm')
+           else
+              call makefnam(flnm, sfilin, 0., &
+                   iyearvs(ivtime,ng), imonthvs(ivtime,ng), &
+                   idatevs(ivtime,ng), ihourvs(ivtime,ng)*10000, &
+                   'W',cgrid2,'bin')
+           end if
+
 
            inquire(file=flnm(1:len_trim(flnm)), exist=there)
 
@@ -477,14 +503,14 @@ subroutine SstFileInv(sfilin, ierr)
               fnames(indice) = trim(flnm)
               indice = indice + 1 
            endif
-           
+
         end do
 
         nftot = indice - 1
 
 
 !!$     call RAMS_filelist(fnames, rams_filelist_arg, nftot)
-        
+
         if (nftot<=0) then
            print *, 'No sst files for grid '//cgrid
            ierr = 1
@@ -499,7 +525,7 @@ subroutine SstFileInv(sfilin, ierr)
         !  have the year 0000. If all of them do not, we probably have an error.
         !  isstcycdata = 1 when data is cyclic
         !  isstcyclic =1 when we are have cyclic data and will be updating in time
-        
+
         nsstfiles(ng) = 0
 
         do nf=1,nftot
@@ -557,9 +583,9 @@ subroutine SstFileInv(sfilin, ierr)
         else
            isstcycdata = 0
         endif
-        
+
         ! Set the main cyclic flag. Only relevant if we are updating in time.
-        
+
         if (iupdsst==1 .and. isstcycdata==1) then
            isstcyclic = 1
         end if
@@ -698,14 +724,16 @@ subroutine SstUpdate(iswap, nfile)
   implicit none
 
   include "files.h"
+  include "UseVfm.h"
 
   integer, intent(IN) :: iswap, nfile
 
   integer            :: ng, nc
+  integer :: ios
   character(len=001) :: cgrid
   character(len=f_name_length) :: flnm
   character(len=001) :: dummy
-
+  character(len=*), parameter :: h="**(SstUpdate)**"
 
   ! Put new fields into future arrays. If iswap == 1,
   !     swap future into past first
@@ -729,12 +757,25 @@ subroutine SstUpdate(iswap, nfile)
         nc          = len_trim(flnm) - 4
         flnm(nc:nc) = cgrid
 
-        call rams_f_open(25, flnm(1:len_trim(flnm)), 'FORMATTED', 'OLD', 'READ', 0)
+        if (useVfm) then
+           call rams_f_open(25, flnm(1:len_trim(flnm)), 'FORMATTED', 'OLD', 'READ', 0)
 
-        read(25,*) dummy
-        read(25,*) dummy
-        read(25,*) dummy
-        read(25,*) dummy
+           read(25,*) dummy
+           read(25,*) dummy
+           read(25,*) dummy
+           read(25,*) dummy
+
+        else
+           open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+           if (ios /= 0) then
+              call fatal_error(h//" error opening file "//trim(flnm))
+           end if
+
+           read(25) dummy
+           read(25) dummy
+           read(25) dummy
+           read(25) dummy
+        end if
      end if
 
      ! deals with seatf

@@ -22,7 +22,8 @@ subroutine ndvi_check_header(ifm, flnm, ierr)
   implicit none
 
   include "files.h"
-
+  include "UseVfm.h"
+  
   ! Arguments:
   integer, intent(IN)       :: ifm
   integer, intent(OUT)      :: ierr
@@ -30,21 +31,38 @@ subroutine ndvi_check_header(ifm, flnm, ierr)
   ! Local Variables:
   integer :: iiyear, iimonth, iidate, iihour,  &
        isfc_marker, isfc_ver, nsfx, nsfy, nsfpat
+  integer :: ios
   real :: sfdx, sfdy, sfplat, sfplon, sflat, sflon, glatr, glonr
-
+  character(len=*), parameter :: h="**(ndvi_check_header)**"
+  
   ierr = 0
 
   call xy_ll(glatr, glonr, platn(ifm), plonn(ifm), xtn(1,ifm), ytn(1,ifm))
 
-  call rams_f_open(25, flnm(1:len_trim(flnm)), 'FORMATTED', 'OLD', 'READ', 0)
+      if (useVfm) then
 
-  read (25,*) isfc_marker, isfc_ver
-  read (25,*) iiyear, iimonth, iidate, iihour
-  read (25,*) nsfx, nsfy, nsfpat
-  read (25,*) sfdx, sfdy, sfplat, sfplon, sflat, sflon
-  close (25)
+       call rams_f_open(25, flnm(1:len_trim(flnm)), 'FORMATTED', 'OLD', 'READ', 0)
+       read (25,*) isfc_marker, isfc_ver
+       read (25,*) iiyear, iimonth, iidate, iihour
+       read (25,*) nsfx, nsfy, nsfpat
+       read (25,*) sfdx, sfdy, sfplat, sfplon, sflat, sflon
+       close (25)
 
-  if (nsfx/=nnxp(ifm) .or. nsfy/=nnyp(ifm) .or. nsfpat/=npatch .or. &
+    else
+
+       open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+       if (ios /= 0) then
+          call fatal_error(h//" error opening file "//trim(flnm))
+       end if
+       read (25) isfc_marker, isfc_ver
+       read (25) iiyear, iimonth, iidate, iihour
+       read (25) nsfx, nsfy, nsfpat
+       read (25) sfdx, sfdy, sfplat, sfplon, sflat, sflon
+       close (25)
+
+    end if
+
+    if (nsfx/=nnxp(ifm) .or. nsfy/=nnyp(ifm) .or. nsfpat/=npatch .or. &
        abs(sfdx-deltaxn(ifm))>0.001 .or. &
        abs(sfdy-deltayn(ifm))>0.001 .or. &
        abs(sfplat-platn(ifm))>0.001 .or. &
@@ -364,7 +382,8 @@ subroutine NdviFileInv (sfilin, ierr)
   implicit none
 
   include "files.h"
- 
+  include "UseVfm.h"
+  
   ! Arguments:
   character(len=*), intent(IN) :: sfilin
   integer, intent(OUT)         :: ierr
@@ -452,10 +471,17 @@ subroutine NdviFileInv (sfilin, ierr)
               ihourvn (1:nvndvif(ifm),ifm) = ihourvn (1:nvndvif(ifm),icm)
            endif
            
-           call makefnam(flnm, sfilin, 0., &
-                iyearvn(ivtime,ng), imonthvn(ivtime,ng), &
-                idatevn(ivtime,ng), ihourvn (ivtime,ng)*10000, &
-                'N', cgrid2, 'vfm')
+             if (useVfm) then
+                call makefnam(flnm, sfilin, 0., &
+                     iyearvn(ivtime,ng), imonthvn(ivtime,ng), &
+                     idatevn(ivtime,ng), ihourvn (ivtime,ng)*10000, &
+                     'N', cgrid2, 'vfm')
+             else
+                call makefnam(flnm, sfilin, 0., &
+                     iyearvn(ivtime,ng), imonthvn(ivtime,ng), &
+                     idatevn(ivtime,ng), ihourvn (ivtime,ng)*10000, &
+                     'N', cgrid2, 'bin')
+             end if
 
            inquire(file=flnm(1:len_trim(flnm)), exist=there)
 
@@ -678,17 +704,16 @@ subroutine NdviUpdate(iswap,nfile)
   implicit none
 
   include "files.h"
+  include "UseVfm.h"
 
   integer :: iswap,nfile
-
-  integer,save :: iun=25
-
+  integer :: ios
   integer :: ng,nc,ip
   character(len=1) :: cgrid
   character(len=f_name_length) :: flnm
   character(len=1) :: dummy
   real, pointer :: p2D(:,:)
-
+  character(len=*), parameter :: h="**(NdviUpdate)**"
 
   ! Put new fields into future arrays. If iswap == 1, 
   !     swap future into past first
@@ -712,25 +737,37 @@ subroutine NdviUpdate(iswap,nfile)
         flnm=fnames_ndvi(nfile,ng)
         nc=len_trim(flnm)-4
         flnm(nc:nc)=cgrid
-
-        call rams_f_open(iun,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
-        read(iun,*) dummy
-        read(iun,*) dummy
-        read(iun,*) dummy
-        read(iun,*) dummy
+        if (useVfm) then
+           call rams_f_open(25,flnm(1:len_trim(flnm)),'FORMATTED','OLD','READ',0)
+           read(25,*) dummy
+           read(25,*) dummy
+           read(25,*) dummy
+           read(25,*) dummy
+        else
+           open(25, action="read", file=trim(flnm), form="unformatted", iostat=ios)
+           if (ios /= 0) then
+              call fatal_error(h//" error opening file "//trim(flnm))
+           end if
+           read(25) dummy
+           read(25) dummy
+           read(25) dummy
+           read(25) dummy
+        end if
+        
      end if
 
      ! deals with ndivf
 
      do ip = 1,npatch
         p2D => leaf_g(ng)%veg_ndvif(:,:,ip)
-        call ReadStoreOwnChunk(ng, iun, p2D, "ndvif")
+        call ReadStoreOwnChunk(ng, 25, p2D, "ndvif")
      end do
 
      ! master process close the input file
 
      if (mchnum == master_num) then
-        close(iun)
+        close(25)
      end if
   end do
 end subroutine NdviUpdate
+

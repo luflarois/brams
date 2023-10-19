@@ -75,6 +75,7 @@ module ReadBcst
   integer, parameter :: idim_type_max=7
   logical, parameter :: dumpLocal=.false.
   include "i8.h"
+  include "UseVfm.h"
 contains
 
 
@@ -169,7 +170,11 @@ contains
     !'master process opens file and reads first data into full domain scratch
 
     if (mchnum == master_num) then
-       call vfirec(fUnit,fullGrid(1,1),nnxp*nnyp,'LIN')
+       if (useVfm) then
+          call vfirec(fUnit,fullGrid(1,1),nnxp*nnyp,'LIN')
+       else
+          read(fUnit) fullGrid
+       end if
     end if
     
     ! broadcast full domain scratch; 
@@ -284,7 +289,11 @@ contains
     ! master process opens file and reads first data into full domain scratch
 
     if (mchnum == master_num) then
-       call vfirec(fUnit,fullGrid(1,1,1),nz*nnxp*nnyp,'LIN')
+       if (useVfm) then
+          call vfirec(fUnit,fullGrid(1,1,1),nz*nnxp*nnyp,'LIN')
+       else
+          read(fUnit) fullGrid
+       end if
     end if
 
     ! broadcast full domain scratch; 
@@ -372,7 +381,11 @@ contains
     ! master process opens file and reads first data into full domain
 !print *, 'LFR-DBG->',fieldName,'Reading... vfirec',mchnum 
     if (mchnum == master_num) then
-       call vfirec(fUnit,full(1,1),nnxp(grid)*nnyp(grid),'LIN')
+       if (useVfm) then
+          call vfirec(fUnit,full(1,1),nnxp(grid)*nnyp(grid),'LIN')
+       else
+          read(fUnit) full
+       end if
     end if
 !print *,'FieldName, Max e min lido: ',fieldName,maxval(full),minval(full),mchnum,master_num
     ! broadcast full domain; 

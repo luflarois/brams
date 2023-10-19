@@ -74,7 +74,7 @@ subroutine MakeSfcFiles()
   !
 
   implicit none
-
+  
   integer :: ifm,icm,nvtime,ivtime,ng1,ng2,ng1t,ng2t,ng1s,ng2s
   integer :: isfcerr,itoperr,issterr,indvierr
 

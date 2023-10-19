@@ -39,11 +39,13 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
 
   include "files.h" 
   include "constants.f90"
+  include "UseVfm.h"
+  
   integer, intent (IN) :: CHEM_ASSIM, CHEMISTRY
   integer :: iyear1,imonth1,idate1,itime1
   real :: timmax
 
-  character(len=*),parameter :: header='**(chem_ISAN_file_inv)**'
+  character(len=*),parameter :: h='**(chem_ISAN_file_inv)**'
 
   ! Local variables ----------------------------------------------------------
   !
@@ -110,7 +112,11 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
            if(guess1st.eq.'PRESS')  then 
 	    if(CHEM_ASSIM == 1 .and. CHEMISTRY >= 0)  then 
 	        write(sVarName,100) iapr(1:len_trim(iapr)),'-',iyears,'-',imonths,'-',idates,'-',ihours/100   
-                sVarName = TRIM(sVarName) // '.vfm'
+                if (useVfm) then
+                   sVarName = trim(sVarName) // '.vfm'
+                else
+                   sVarName = trim(sVarName) // '.bin'
+                end if
 	    else 
 	        write(sVarName,101) iapr(1:len_trim(iapr)),iyears,'-',imonths,'-',idates,'-',ihours/100   
 	    endif
@@ -187,24 +193,15 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
 
            lnf=len_trim(fnames_fg(nf))
 
-!--(DMK-CCATT-INI)----------------------------------------------------------------
-!srf-chem         
-	 if(trim(fnames_fg(nf)(len_trim(fnames_fg(nf))-2:len_trim(fnames_fg(nf)))) == 'vfm') then
-            if(guess1st.eq.'PRESS')  &
-                 read(fnames_fg(nf)(lnf-18:lnf-4),20) inyear,inmonth,indate,inhour
-         else
-!--(DMK-CCATT-FIM)----------------------------------------------------------------
-
-           if(guess1st.eq.'PRESS')  &
-                read(fnames_fg(nf)(lnf-14:lnf),20) inyear,inmonth,indate,inhour
-		
-!--(DMK-CCATT-INI)----------------------------------------------------------------
-          endif
+           if(guess1st.eq.'PRESS') then
+              read(fnames_fg(nf)(lnf-18:lnf-4),20) inyear,inmonth,indate,inhour
+           end if
 !--(DMK-CCATT-FIM)----------------------------------------------------------------
 
            ! form of a-A-2000-07-01-060000-head.txt
-           if(guess1st.eq.'RAMS')  &
-                read(fnames_fg(nf)(lnf-25:lnf-10),20) inyear,inmonth,indate,inhour
+           if(guess1st.eq.'RAMS')  then
+              read(fnames_fg(nf)(lnf-25:lnf-10),20) inyear,inmonth,indate,inhour
+           end if
 
 20         format(i4,1x,i2,1x,i2,1x,i4)
 
@@ -497,7 +494,7 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
     if(icFileType==1) then
 
         inquire(file=iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))), exist=fileExist )
-        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,header,'468' &
+        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,h,'468' &
               ,c_fatal,'File '//iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))) &
               //' not found. Please, verify and solve it!')
         write(*,fmt='(A)') '---- First guess file' &
@@ -505,7 +502,7 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
         iproc_flag(nn,2)=1
     elseif(icFileType==2) then
         inquire(file=iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))), exist=fileExist )
-        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,header,'468' &
+        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,h,'468' &
               ,c_fatal,'File '//iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))) &
               //' not found. Please, verify and solve it!')
         write(*,fmt='(A)') '---- First guess file' &
@@ -513,7 +510,7 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
         iproc_flag(nn,2)=1
     elseif(icFileType==3) then
         inquire(file=iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))), exist=fileExist )
-        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,header,'468' &
+        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,h,'468' &
               ,c_fatal,'File '//iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))) &
               //' not found. Please, verify and solve it!')
         write(*,fmt='(A)') '---- First guess file' &
@@ -522,7 +519,7 @@ subroutine chem_ISAN_file_inv (iyear1,imonth1,idate1,itime1,timmax,CHEM_ASSIM, C
     elseif(icFileType==4) then
         write(*,fmt='(A)') 'Checking for '//iproc_names(nn,5)(1:len_trim(iproc_names(nn,5)))
         inquire(file=iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))), exist=fileExist )
-        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,header,'468' &
+        if(.not. fileExist)  iErrNumber=dumpMessage(c_tty,c_yes,h,'468' &
               ,c_fatal,'File '//iproc_names(nn,5)(1:len_trim(iproc_names(nn,5))) &
               //' not found. Please, verify and solve it!')
         write(*,fmt='(A)') '---- First guess file' &
@@ -642,7 +639,7 @@ subroutine makeGrib2fileName(prefix,itime1,isan_inc,nn,gribFileName,invFileName)
     include "constants.f90"
 
     !Parameters (constants)
-    character(len=*),parameter :: header='**(makeGrib2fileName)**'
+    character(len=*),parameter :: h='**(makeGrib2fileName)**'
 
     ! Input/Output variables
     character(len=*), intent(in) :: prefix 
@@ -676,7 +673,7 @@ subroutine makeGradsfileName(prefix,isan_inc,nn,gradsFileName,invFileName,iproc_
     include "constants.f90"
 
     !Parameters (constants)
-    character(len=*),parameter :: header='**(makeGradsfileName)**'
+    character(len=*),parameter :: h='**(makeGradsfileName)**'
 
     ! Input/Output variables
     character(len=*), intent(in) :: prefix 
@@ -723,7 +720,7 @@ subroutine makeGeosfileName(prefix,isan_inc,nn,geosFileName,invFileName,iproc_da
     include "constants.f90"
 
     !Parameters (constants)
-    character(len=*),parameter :: header='**(makeGeosfileName)**'
+    character(len=*),parameter :: h='**(makeGeosfileName)**'
 
     ! Input/Output variables
     character(len=*), intent(in) :: prefix 
