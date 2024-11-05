@@ -8,6 +8,7 @@ module sfireMod
       mynum, &
       mchnum, &
       master_num, &
+      nodei0, nodej0, &
       nmachs, & !INTRUDOZIDO ISILDA
       nodemxp, & !INTRUDOZIDO ISILDA
       nodemyp, & !INTRUDOZIDO ISILDA
@@ -34,7 +35,9 @@ contains
          DumpNamelistsfireFile
 
       use mem_grid, only: ngrid, deltaxn, deltayn, dtlongn, time, istp, &
-                          nnzp, nnxp, nnyp, grid_g, npatch, zt, nzpmax ! dtlong, ESTES SO INTROD POR ISILDA
+                          nnzp, nnxp, nnyp, grid_g, npatch, zt, nzpmax, &
+                          zmn,          deltax, & ! intent(in)
+                          deltay! intent(in)! dtlong, ESTES SO INTROD POR ISILDA
 
       use mem_sfire, only: &
          sfire_g, &
@@ -62,6 +65,26 @@ contains
       use mem_basic, only: basic_g
       use micphys, only: mcphys_type
 
+      use modSfire2Brams, only: readModisVeg, get_emission_in_global_brams_grid, nspecies_sfire &
+                              , sfire_species_name, flam_frac, mean_frp, std_frp &
+                              , mean_size, std_size, qsc, count_in_grid, sfire_info_area &
+                              , sfire_info_time, sfire_info_frp, sfire_info_lat &
+                              , sfire_info_lon,alloc_dealloc_sfire_info, valid_ij &
+                              , comm_aer_data, testModSfire2Brams
+
+      use aer1_list, only : spc_alloc,spc_name, src, ddp, wdp, fdda, offline, on ,off &
+      ,mode_alloc, mode_name, aer_name, nspecies_aer=> nspecies,nmodes, bburn
+
+      use mem_aer1, only: aer1_vars, aer1_g
+
+      use mem_plume_chem1, only:  &
+         plume_fre_g, &
+         iflam_frac, &
+         istd_frp, &
+         imean_frp, &
+         imean_size, &
+         istd_size
+
       implicit none
 
       integer, intent(IN) :: mzp, mxp, myp, ia, iz, ja, jz
@@ -72,6 +95,7 @@ contains
 
       !Local Variables
       integer            :: ng, a_step, i, j, k, ierr, np
+      integer :: ispc,imode
       real ::hf(nnxp(1), nnyp(1))
       real ::ch(nnxp(1), nnyp(1))
       real ::qf(nnxp(1), nnyp(1))
@@ -109,18 +133,34 @@ contains
       real ::a, b, step_isil
       integer, parameter :: ifm = 1 ! MUDAR ESTE PARAMETRO PARA UM LOOP SE EXISTIREM MAIS GRIDS
 
-      if (mcphys_type /= 0) then
+      !if (mcphys_type /= 0) then
 
+      real :: aer(nspecies_sfire,nnxp(1),nnyp(1))
+      real :: aerLocal(nspecies_sfire,mxp,myp)
+      real :: pvar(mxp,myp)
+      integer :: i1,i2,j1,j2
+      logical :: ok
+      real :: flam_frac_com(nnxp(1),nnyp(1))
+      real :: mean_frp_com(nnxp(1),nnyp(1))
+      real :: std_frp_com(nnxp(1),nnyp(1))
+      real :: mean_size_com(nnxp(1),nnyp(1))
+      real :: std_size_com(nnxp(1),nnyp(1))
+
+      !BRAMS BBURN2 equivalent specie
+      real :: bburn2(mzp,mxp,myp)      
+
+      if (mcphys_type .ne. 0) then
          print *, " SFIRE PRECISA DE MCPHYS_TYPE=0"
          stop
       end if
 
-   !print *,'LFR-DBG 00: Fazendo gather nas variáveis do BRAMS'; call flush(6)
-!print*," SFIRE -ENTREI- ANTES do GATHER DATA"; call flush(6)
-      !  print*,varinit_g(ngrid)%varwts
-! Gathering Data
-      ! print*,'NPATCH 1111***********'
-      ! print*,npatch
+      bburn2 = 0.0
+
+      i1 = nodei0(mynum,ifm)+1
+      i2 = nodei0(mynum,ifm)+nodemxp(mynum,ifm)
+      j1 = nodej0(mynum,ifm)+1
+      j2 = nodej0(mynum,ifm)+nodemyp(mynum,ifm)
+
       varn = 'SFLUX_T'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
@@ -279,18 +319,12 @@ contains
 
       ! print*,"******istp, time***** =",istp, time
       if (mchnum == master_num) then
-         !print *, "SFIRE - sou", mynum, "  - setor  serial"; call flush (6)
-         !print*,'GLAT',temp_glat(1,1),temp_glat(1,200), temp_glat(200,1),temp_glat(200,200)
-         !print*,'GLON',temp_glon(1,1),temp_glon(1,200), temp_glon(200,1),temp_glon(200,200)
+         
+         !================ LFR =================
+         if (time ==0.0) call readModisVeg(temp_rtgt,deltax/1000.0) !Setup inicial  do BRAMS<->SFIRE
+         goto 1000
+         !======================================
 
-!  print*,'LIX0 1 *********'
-         !      print*,temp_veg_class(:,:,1)
-         !     print*,'LIXO 2'
-         !    print*,temp_veg_class(:,:,2)
-         !    print*,'LIXO 3'
-         !  print*,temp_veg_class(:,:,3)
-         !    print*,'LIXO 4'
-         !  print*,temp_veg_class(:,:,4)
          do k = 1, nnzp(1)
             do j = 1, nnyp(1)
                do i = 1, nnxp(1)
@@ -348,8 +382,6 @@ contains
             !print *,'LFR-DBG 03: Pegando IJK da subgrade, config_flags'; call flush(6)
             call get_ijk_from_subgrid(config_flags)
 
-
-
             sfire_g%sr_x = config_flags%sr_x
             sfire_g%sr_y = config_flags%sr_y
 
@@ -370,11 +402,11 @@ contains
             call zero_sfire_brams(sfire_g)
 
 !LFR - DBG
-                        do i=1,size(sfire_g%fmep,1)
-                           do j=1,size(sfire_g%fmep,3)
-                              write(40,*) i,j, sfire_g%fmep(i, 1, j)
-                           end do
-                        end do
+                        ! do i=1,size(sfire_g%fmep,1)
+                        !    do j=1,size(sfire_g%fmep,3)
+                        !       write(40,*) i,j, sfire_g%fmep(i, 1, j)
+                        !    end do
+                        ! end do
 
             if (associated(sfire_g%i_start)) then; deallocate (sfire_g%i_start); nullify (sfire_g%i_start); end if
             if (associated(sfire_g%i_end)) then; deallocate (sfire_g%i_end); nullify (sfire_g%i_end); end if
@@ -441,6 +473,7 @@ contains
             where (sfire_g%dz8w < 1.) sfire_g%dz8w = 1.
 
          end if !(time==0)
+         
          !print *,'LFR-DBG 09: Marco!!! Passou pela inicialização do tempo ZERO !!! '; call flush(6)
 
          sfire_g%itimestep = istp
@@ -601,6 +634,18 @@ contains
             end do
          end do
 
+         !***********************************************************************************
+         !***********************************************************************************
+         !***********************************************************************************
+1000     continue
+      
+         !***********************************************************************************
+         !****************** Simulando um caso em pontos de grade **********************
+         ! O teste abaixo chama uma rotina que faz um teste com focos lidos de um arquivo
+         !***********************************************************************************
+         if (time == 60.0) then
+            call testModSfire2Brams(temp_glat,temp_glon,temp_dn0)
+         end if
 
          ! print*,'DEBUG :: -----------------'
          ! print*,'jules'
@@ -621,7 +666,7 @@ contains
          !print*,sfire_g%grnqfx
          !print *, 'LFR-DBG 15: fim do setor serial'; call flush (6)
       end if
-      call Broadcast(mynum, master_num, "sync")
+      !call Broadcast(mynum, master_num, "sync")
       !print *, 'LFR-DBG 16: ', mynum, 'Saindo do setor serial'; call flush (6)
       ! print*,"estou no sfire vou entrar no PARALELISMO - ISTP - TIME =",istp,time
 !   call parf_barrier(0)
@@ -636,10 +681,9 @@ contains
       !        turb_g(ngrid)%sflux_t,turb_g(ngrid)%sflux_r)
       !print*,"dentro drive sai do swap"
 
-      ! varn = 'SFLUX_T'
-      ! call gatherData(2, varn,1, nnxp(1), nnyp(1), &
-      !      nmachs, mchnum, mynum, master_num,                    &
-      !       temp_sflux_t, turb_g(ngrid)%sflux_t)
+      ! Comunica os pontos calculados para todos os processadores
+      ! E determina aer1_g vars, valores médios e desvio padrão
+      call comm_aer_data(mzp, mxp, myp, ia, iz, ja, jz)
 
       !    print*,"passei SFLUX_T"
 
@@ -648,9 +692,11 @@ contains
       !      nmachs, mchnum, mynum, master_num,                    &
       !      temp_sflux_r,turb_g(ngrid)%sflux_r)
 
-      call swap_sfire_brams(temp_sflux_t, temp_sflux_r, &
-                            turb_g(ngrid)%sflux_t, turb_g(ngrid)%sflux_r)
-      !-- scattering local data
+      !LFR call swap_sfire_brams(temp_sflux_t, temp_sflux_r, &
+      !LFR                       turb_g(ngrid)%sflux_t, turb_g(ngrid)%sflux_r)
+      
+      
+                            !-- scattering local data
       !print*, "turb_g(ngrid)%sflux_t", turb_g(ngrid)%sflux_t
       !call flush(6)
       !print*,"turb_g(ngrid)%sflux_r", turb_g(ngrid)%sflux_r
@@ -955,11 +1001,11 @@ contains
          close (b)
          
          !LFR-DBG - beg
-         do i=1,nnxp(1)
-            do j=1,nnyp(1)
-               write (88,*),i,j,nfuel_cat(i, j)
-            enddo
-         enddo
+         !do i=1,nnxp(1)
+         !   do j=1,nnyp(1)
+         !      write (88,*),i,j,nfuel_cat(i, j)
+         !   enddo
+         !enddo
          !LBR-DBG - end
 
       else

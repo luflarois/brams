@@ -49,6 +49,11 @@ contains
          istd_frp, &
          imean_size, &
          istd_size
+      use node_mod, only: &
+         mynum,          & ! INTENT(IN)
+         mchnum,        &
+         master_num
+      use mem_sfire, only: sfire
 
       integer, intent(IN)    :: mzp
       integer, intent(IN)    :: mxp
@@ -130,15 +135,19 @@ contains
       real :: zm(nkp)
       real :: dzt(nkp)
       real :: dzm(nkp)
+      integer :: i,j
+      character(len=*), parameter :: fm = '(2(I3.3,1X),3(E15.5,1X))'
 
       if (mod(time + .001, pr_time) .le. (dtlt) .or. time .lt. .01 .or. &
-          abs(time - srctime1) .lt. 1.e-5) then
-
+          abs(time - srctime1) .lt. 1.e-5 .or. sfire>0) then
+!if (mchnum==master_num) print *,'LFR-DBG - Chamando plumerise = timestep ',time
 !!$       WRITE(c0,"(f8.1)") time
 !!$       CALL MsgOne(h,' -----------------------------------------------------')
 !!$       CALL MsgOne(h,' plumerise tendencies updated')
 !!$       CALL MsgOne(h,' time = '//TRIM(ADJUSTL(c0))//' seconds')
 !!$       CALL MsgOne(h,' -----------------------------------------------------')
+
+
          call plumerise(mzp, mxp, myp, ia, iz, ja, jz, &
                         theta, pp, pi0, rv, up, vp, rtgt, lpw, zt_rams, zm_rams, &
                         nzpmax, dzt_rams, chem_nspecies, spc_chem_alloc, &
@@ -175,6 +184,10 @@ contains
          istd_frp, &
          imean_size, &
          istd_size
+      use node_mod, only: &
+         mynum,          & ! INTENT(IN)
+         mchnum,        &
+         master_num
 
       integer, intent(IN)      :: nkp
       integer, intent(IN)      :: ntime

@@ -365,7 +365,7 @@ contains
          onePostGrid%fieldDescription = 'Zonal Wind at 10m - 1 hours ago'
          OutputField(:, :) = ScrT3N01(:, :, 6)
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('V10MJ1HR')
          call checkUsingJules(one_post_variable%fieldName)
          onePostGrid%ivar_type = one_post_variable%ivar_type
@@ -400,7 +400,7 @@ contains
          onePostGrid%fieldDescription = 'Meridional Wind at 10m - 1 hours ago'
          OutputField(:, :) = ScrT3N01(:, :, 6)
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('T2MJ')
          call checkUsingJules(one_post_variable%fieldName)
          onePostGrid%fieldName = one_post_variable%fieldName
@@ -431,7 +431,7 @@ contains
             onePostGrid%fieldDescription = 'Temperature at 2m - from JULES'
          endif
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('T2MJ_MAX')
          call checkUsingJules(one_post_variable%fieldName)
          onePostGrid%fieldName = one_post_variable%fieldName
@@ -462,7 +462,7 @@ contains
             onePostGrid%fieldDescription = 'Max Temp at 2m - from JULES'
          endif
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('T2MJ_MIN')
          call checkUsingJules(one_post_variable%fieldName)
          onePostGrid%fieldName = one_post_variable%fieldName
@@ -493,7 +493,7 @@ contains
             onePostGrid%fieldDescription = 'Min Temp at 2m - from JULES'
          endif
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('ZI')
          ! because is 3d in a 2d variable definition, need to set onePostGrid and call OutputGradsField
          call PrepareGradsField (one_post_variable, onePostGrid)
@@ -502,7 +502,7 @@ contains
          call GetVarFromMemToOutput ('TOPT', oneBramsGrid%currGrid, ScrT2N01)
          call rams_comp_pbl (OutputField3d, ScrT2N01, oneBramsGrid%ztn, oneBramsGrid%ztop)
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField3d)
-         return
+         !return
       case ('HT_FLUXJ')
          call GetVarFromMemToOutput ('ht_fluxj', oneBramsGrid%currGrid, OutputField)
       case ('CSJ')
@@ -534,7 +534,7 @@ contains
             onePostGrid%fieldUnits = 'kg/m2'
          endif
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
       case ('RV2MJ')
          call checkUsingJules(one_post_variable%fieldName)
          onePostGrid%fieldName = one_post_variable%fieldName
@@ -555,7 +555,7 @@ contains
             onePostGrid%fieldDescription = 'Mixing rate at 2m - from JULES'
             call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
          endif
-         return
+         !return
       case ('ZITHETA')
          call GetVarFromMemToOutput ('THETA', oneBramsGrid%currGrid, ScrT3N01)
          call GetVarFromMemToOutput ('RCP', oneBramsGrid%currGrid, ScrT3N02)
@@ -627,7 +627,7 @@ contains
             onePostGrid%fieldDescription = 'Dewpoint temp at 2m - from JULES'
          end if
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField)
-         return
+         !return
 !LFR New chemical outputs on surface
       case ('CO_SFC')
          call PrepareGradsField (one_post_variable, onePostGrid)
@@ -686,7 +686,7 @@ contains
          OutputField3d(:, :, 2) = OutputField3d(:, :, 1) * (1. - ScrT2N01(:, :) / oneBramsGrid%ztop) &
                / oneBramsGrid%dztn(2) / 86400. * 1.e-3  ! convertendo de kg/m3/dia para mg/m2/s
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField3d)
-         return
+         !return
       case ('CO2_bioge')
          ! because is 3d in a 2d variable definition, need to set onePostGrid and call OutputGradsField
          call PrepareGradsField (one_post_variable, onePostGrid)
@@ -695,7 +695,7 @@ contains
          OutputField3d(:, :, 2) = OutputField3d(:, :, 1) * (1. - ScrT2N01(:, :) / oneBramsGrid%ztop) &
                / oneBramsGrid%dztn(2) * 1.e-3  ! convertendo de kg/m3/dia para mg/m2/s
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField3d)
-         return
+         !return
       case ('CO2_TOTAL')
          call GetVarFromMemToOutput ('CO2P', oneBramsGrid%currGrid, ScrT3N04)
          ! call RAMS_comp_noneg(n1,n2,n3,a)
@@ -736,7 +736,7 @@ contains
          !call RAMS_comp_mults(n1,n2,n3,a,1.e+6*1.e-9 )  ! converte de kg/m2 para mg/m2
          OutputField3d = OutputField3d * 1.e+6 * 1.e-9        ! converte de kg/m2 para mg/m2
          call OutputGradsField (oneBramsGrid, onePostGrid, OutputField3d)
-         return
+         !return
       case ('APRGR')
          call GetVarFromMemToOutput ('accpr_gr', oneBramsGrid%currGrid, OutputField)
          OutputField = max(OutputField, 0.0)

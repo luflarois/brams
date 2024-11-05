@@ -99,7 +99,13 @@ module_fr_sfire_driver_brams.o: $(SFIRE)/module_fr_sfire_driver_brams.f90 module
 	$(F_COMMAND_LIGHT) $(<F:.f90=.f90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src
 
-modSfire.o: $(SFIRE)/modSfire.f90 read_namelist_fire.o mem_sfire.o module_fr_sfire_driver_brams.o
+modSfire.o: $(SFIRE)/modSfire.f90 read_namelist_fire.o mem_sfire.o module_fr_sfire_driver_brams.o \
+	modSfire2Brams.o
 	@cp -f $< $(<F:.f90=.f90)
 	$(F_COMMAND_LIGHT) $(<F:.f90=.f90) $(EXTRAFLAGSF)
+	@mv -f $(<F:.f90=.f90) ../doc/src
+
+modSfire2Brams.o : $(SFIRE)/modSfire2Brams.f90
+	@cp -f $< $(<F:.f90=.f90)
+	$(F_COMMAND) $(<F:.f90=.f90) $(EXTRAFLAGSF)
 	@mv -f $(<F:.f90=.f90) ../doc/src

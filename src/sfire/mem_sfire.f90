@@ -8,7 +8,7 @@ MODULE mem_sfire
   TYPE(grid_config_rec_type), pointer :: config_flags => null()
 
   integer :: sfire
-  
+
 
 CONTAINS
 

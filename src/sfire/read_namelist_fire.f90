@@ -134,6 +134,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     real ::cen_lat
     real ::cen_lon
     logical ::restart
+    logical ::cycling
     integer ::sr_x
     integer ::sr_y
     logical :: fmoist_run
@@ -141,6 +142,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     logical :: fmoist_only
     integer :: fmoist_freq
     real :: fmoist_dt
+    real :: fmep_decay_tlag
     integer :: ifire
     logical :: crown
     integer :: fire_boundary_guard
@@ -263,10 +265,12 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     integer :: kfmc_ndwi
     integer :: fire_can_top_read
     integer :: sfire_upwinding
+    real :: fire_tign_in_time
 
    namelist /FIRE_DEFAULT/                                        &
-         dx,dy,dt,tracer_opt,cen_lat,cen_lon,restart,sr_x,sr_y, &
+         dx,dy,dt,tracer_opt,cen_lat,cen_lon,restart,cycling,sr_x,sr_y, &
          fmoist_run,fmoist_interp,fmoist_only,fmoist_freq,fmoist_dt, &
+         fmep_decay_tlag,&
          fire_ignition_ros4,fire_ignition_start_lon4, &
          fire_ignition_start_lat4,fire_ignition_end_lon4, &
          fire_ignition_end_lat4,fire_ignition_radius4, &
@@ -299,7 +303,8 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
          fire_hfx_start_lat1,fire_hfx_end_lat1,fire_hfx_start_y1, &
          fire_hfx_end_y1,fire_hfx_start_lon1,fire_hfx_end_lon1, &
          chem_opt,nfmc,fire_ignition_clamp,fire_update_fuel_frac,&
-         fndwi_from_ndwi,kfmc_ndwi,fire_can_top_read,sfire_upwinding
+         fndwi_from_ndwi,kfmc_ndwi,fire_can_top_read,sfire_upwinding,&
+         fire_tign_in_time
 
 
      namelist /FIRE_SIMUL_INFO/ &
@@ -332,13 +337,15 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     cen_lat                             = 39.7053
     cen_lon                             = -107.2907
     restart                             = .false.
+    cycling                             = .false.
     sr_x                                = 0
     sr_y                                = 0
     fmoist_run                          = .false.
     fmoist_interp                       = .false.
     fmoist_only                         = .false.
     fmoist_freq                         = 0
-    fmoist_dt                           = 600
+    fmoist_dt                           = 600.
+    fmep_decay_tlag                     = 999999.
     fire_ignition_ros4                  = 0.01
     fire_ignition_start_lon4            = 0.
     fire_ignition_start_lat4            = 0.
@@ -419,6 +426,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     kfmc_ndwi                           = 1
     fire_can_top_read                   = 1
     sfire_upwinding                     = 3
+    fire_tign_in_time                   = 0.
 
     !FIRE_SIMUL_INFO
  
@@ -512,6 +520,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(*,*) "cen_lat=",cen_lat
        write(*,*) "cen_lon=",cen_lon
        write(*,*) "restart=",restart
+       write(*,*) "cycling=",cycling
        write(*,*) "sr_x=",sr_x
        write(*,*) "sr_y=",sr_y
        write(*,*) "fmoist_run=",fmoist_run
@@ -519,6 +528,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(*,*) "fmoist_only=",fmoist_only
        write(*,*) "fmoist_freq=",fmoist_freq
        write(*,*) "fmoist_dt=", fmoist_dt
+       write(*,*) "fmep_decay_tlag=",fmep_decay_tlag
        write(*,*) "fire_ignition_ros4=",fire_ignition_ros4
        write(*,*) "fire_ignition_start_lon4=",fire_ignition_start_lon4
        write(*,*) "fire_ignition_start_lat4=",fire_ignition_start_lat4
@@ -599,6 +609,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(*,*) "kfmc_ndwi=",kfmc_ndwi
        write(*,*) "fire_can_top_read=",fire_can_top_read
        write(*,*) "sfire_upwinding=",sfire_upwinding
+       write(*,*) "fire_tign_in_time=",fire_tign_in_time
 
       ! call fatal_error(h//" reading namelist")
     else
@@ -611,6 +622,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
      oneNamelistFile%cen_lat = cen_lat
      oneNamelistFile%cen_lon = cen_lon
      oneNamelistFile%restart = restart
+     oneNamelistFile%cycling = cycling
      oneNamelistFile%sr_x = sr_x
      oneNamelistFile%sr_y = sr_y
      oneNamelistFile%fmoist_run = fmoist_run
@@ -618,6 +630,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
      oneNamelistFile%fmoist_only =fmoist_only
      oneNamelistFile%fmoist_freq =fmoist_freq
      oneNamelistFile%fmoist_dt =fmoist_dt
+     oneNamelistFile%fmep_decay_tlag=fmep_decay_tlag
      oneNamelistFile%fire_ignition_ros4 = fire_ignition_ros4
      oneNamelistFile%fire_ignition_start_lon4 = fire_ignition_start_lon4
      oneNamelistFile%fire_ignition_start_lat4 = fire_ignition_start_lat4
@@ -698,6 +711,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
      oneNamelistFile%kfmc_ndwi = kfmc_ndwi
      oneNamelistFile%fire_can_top_read = fire_can_top_read
      oneNamelistFile%sfire_upwinding = sfire_upwinding
+     oneNamelistFile%fire_tign_in_time = fire_tign_in_time
 
     end if
 
@@ -826,6 +840,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     real ::cen_lat
     real ::cen_lon
     logical ::restart
+    logical ::cycling
     integer ::sr_x
     integer ::sr_y
     logical :: fmoist_run
@@ -833,6 +848,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     logical :: fmoist_only
     integer :: fmoist_freq
     real :: fmoist_dt
+    real :: fmep_decay_tlag
     integer :: ifire
     logical :: crown
     integer :: fire_boundary_guard
@@ -955,6 +971,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
     integer :: kfmc_ndwi
     integer :: fire_can_top_read
     integer :: sfire_upwinding
+    real :: fire_tign_in_time
     integer :: ng
     open(18, file='copy_RAMSIN_FIRE.dat', action='write', form='formatted')
 
@@ -969,6 +986,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(18,*) "cen_lat=",oneNamelistFile%cen_lat
        write(18,*) "cen_lon=",oneNamelistFile%cen_lon
        write(18,*) "restart=",oneNamelistFile%restart
+       write(18,*) "cycling=",oneNamelistFile%cycling
        write(18,*) "sr_x=",oneNamelistFile%sr_x
        write(18,*) "sr_y=",oneNamelistFile%sr_y
        write(18,*) "fmoist_run=",oneNamelistFile%fmoist_run
@@ -1092,6 +1110,7 @@ subroutine CreateNamelistsfireFile(oneNamelistFile)
        write(18,*) "kfmc_ndwi=",oneNamelistFile%kfmc_ndwi
        write(18,*) "fire_can_top_read=",oneNamelistFile%fire_can_top_read
        write(18,*) "sfire_upwinding=",oneNamelistFile%sfire_upwinding
+       write(18,*) "fire_tign_in_time=",oneNamelistFile%fire_tign_in_time
 
 
 

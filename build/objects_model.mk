@@ -839,7 +839,8 @@ OBJ_MOD = \
    mem_sfire.o \
    read_namelist_fire.o \
    module_fr_sfire_driver_brams.o \
-	modSfire.o
+   modSfire.o \
+   modSfire2Brams.o 
 
 
 	JULES_OBJ_SFCLYR = sfclyr_jules.o
@@ -1200,7 +1201,8 @@ MOD_MOD = \
 	gfdl_cloud_microphys_mod.mod \
 	modIau.mod \
 	leaf3_ocean_only.mod \
-	modTimeLineFRN.mod
+	modTimeLineFRN.mod \
+	modSfire2Brams.mod
 
 ifeq ($(NETCDFFDIR),)
 	MOD_MODEL =  netcdf.mod $(MOD_MOD) 

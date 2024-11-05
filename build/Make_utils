@@ -11,7 +11,7 @@
 # Define path and compilation 
 #package        = ../src/ramsmain.f90
 version        = 5.0.1
-PREFIX         = /home/oscar
+PREFIX         = /home/lufla/bin
 FC             = @FC@
 HAVE_HDF5      = @HAVE_HDF5@
 HDF5LIB        = 
@@ -20,9 +20,9 @@ HDF5DIR =
 CHEM	       = RELACS_TUV
 
 CCOMP	       = gcc
-CPCOMP	       = /opt/gnu8/bin/mpicc
+CPCOMP	       = /opt/app/bin/mpicc
 FCOMP	       = gfortran
-FPCOMP	       = /opt/gnu/bin/mpif90
+FPCOMP	       = /opt/app/bin/mpif90
 
 CMACH=       PC_LINUX1
 PAR_DEFS=    -DRAMS_MPI
@@ -51,7 +51,7 @@ endif
 ifeq ($(notdir $(FPCOMP)),mpif90)
 FC=$(FPCOMP)
 #FC=$(FPCOMP) -f90=$(FCOMP)
-CC=$(CPCOMP)
+CC=$(CPCOMP) -fpermissive -std=gnu89
 #CC=$(CPCOMP) -cc=$(CCOMP)
  # For intel compiler debugging
           #FC_FLAGS=-O0 -mcmodel=large -check bounds -traceback -fpe0 -check uninit -init=snan,arrays

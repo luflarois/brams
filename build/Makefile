@@ -9,7 +9,7 @@
 .SUFFIXES: .C .f90 .F90 .c .o
 
 version        = 5.0.1
-PREFIX         = /home/oscar
+PREFIX         = /home/lufla/bin
 HAVE_HDF5      = @HAVE_HDF5@
 HDF5LIB        = 
 
@@ -19,9 +19,9 @@ COLOR        = @COLOR@
 MATRIXLEV	   = 1
 
 CCOMP	       = gcc
-CPCOMP	       = /opt/gnu/bin/mpicc
+CPCOMP	       = /opt/app/bin/mpicc
 FCOMP	       = gfortran
-FPCOMP	       = /opt/gnu/bin/mpif90
+FPCOMP	       = /opt/app/bin/mpif90
 
 CMACH=       PC_LINUX1
 PAR_DEFS=    -DRAMS_MPI
@@ -29,9 +29,9 @@ PAR_DEFS=    -DRAMS_MPI
 HAVE_ZLIB      = no
 ZLIB        = 
 
-WGRIBDIR = /opt/gnu
-NETCDFFDIR = /opt/gnu
-NETCDFCDIR = /opt/gnu
+WGRIBDIR = 
+NETCDFFDIR = /opt/app/
+NETCDFCDIR = /opt/app/
 HDF5DIR = 
 MPIDIR = @MPIDIR@
 
@@ -167,8 +167,7 @@ endif
 ifeq ($(notdir $(FCOMP)),gfortran)
 JULES_DEFS = $(JULES_DEFS0) GNU_FORTRAN
 #FC_FLAGS=-O3 -ffree-form -ffree-line-length-none -fbacktrace -g -fcheck=bounds -fcheck=all -finit-real=nan # -Wall -ffpe-trap=invalid,zero
-FC_FLAGS=-ffree-form -ffree-line-length-none -fbacktrace -g -fno-range-check -fcheck=bounds
-FC_FLAGS=-ffree-form -ffree-line-length-none -fbacktrace -g -fno-range-check -fcheck=bounds -ffpe-trap=invalid,zero
+FC_FLAGS=-ffree-form -ffree-line-length-none -fbacktrace -g -fno-range-check -fcheck=all -fcheck=bounds
 
 ifeq ($(GCC_VER_GTE10),)
      FC_FLAGS +=-fallow-argument-mismatch
@@ -176,7 +175,7 @@ endif
 
 OT_FLAGS=-O3
 #CCFLAGS=-O2
-CCFLAGS=-O0
+CCFLAGS=-O0 -fpermissive -std=gnu89
 FPP=-cpp
 FC=$(FPCOMP) $(OT_FLAGS)
 endif

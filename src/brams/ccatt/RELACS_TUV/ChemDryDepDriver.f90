@@ -87,7 +87,7 @@ CONTAINS
        conprr_dummy=>cuparm_g(ngrid)%conprr
     ELSE
        ALLOCATE(conprr_dummy(m2,m3))
-       NULLIFY(conprr_dummy)
+       !LFR para testar NULLIFY(conprr_dummy)
     ENDIF
 
     CALL dry_dep(m1,m2,m3,ia,iz,ja,jz           & 
