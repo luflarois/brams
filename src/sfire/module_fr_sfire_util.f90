@@ -89,11 +89,8 @@ contains
                                  istrip, &
                                  ids, ide, jds, jde, &
                                  ims, ime, jms, jme, &
-                                 ips, ipe, jps, jpe, &
-                                 its, ite, jts, jte, &
                                  ifds, ifde, jfds, jfde, &
                                  ifms, ifme, jfms, jfme, &
-                                 ifts, ifte, jfts, jfte, &
                                  ir, jr, &
                                  zs, &
                                  zsf)
@@ -104,27 +101,26 @@ contains
                             istrip, &
                             ids, ide, jds, jde, &
                             ims, ime, jms, jme, &
-                            ips, ipe, jps, jpe, &
-                            its, ite, jts, jte, &
                             ifds, ifde, jfds, jfde, &
                             ifms, ifme, jfms, jfme, &
-                            ifts, ifte, jfts, jfte, &
                             ir, jr
       real, intent(in), dimension(ims:ime, jms:jme):: zs
       real, intent(out), dimension(ifms:ifme, jfms:jfme):: &
          zsf
-
-      real, dimension(its - 2:ite + 2, jts - 2:jte + 2):: za
+      !##########PEREIRA
+    !  real, dimension(ids - 2:ide + 2, jds - 2:jde + 2):: za
+      real, dimension(ims:ime, jms:jme):: za
+      !##################
       integer:: i, j, jts1, jte1, its1, ite1, jfts1, jfte1, ifts1, ifte1, itso, jtso, iteo, jteo
-
+      print *, 'LFR-DBG: "ESTOU DENTRO ROTINA interpolate_z2fire'
       !print *, 'LFR-DBG: calling crash'; call flush (6)
       if (istrip .gt. 1) call crash('interpolate_z2fire: istrip should be 0 or 1 or less')
 
-      jts1 = max(jts - 1, jds)
-      its1 = max(its - 1, ids)
-      jte1 = min(jte + 1, jde)
-      ite1 = min(ite + 1, ide)
-      !print *, 'LFR-DBG: ',its1, ite1, jts1, jte1, size(za,1),size(za,2),size(zs,1),size(zs,2)
+      jts1 = jds
+      its1 = ids
+      jte1 = jde
+      ite1 = ide
+      print *, 'LFR-DBG: ',its1, ite1, jts1, jte1, size(za,1),size(za,2),size(zs,1),size(zs,2)
       do j = jts1, jte1
          do i = its1, ite1
          !print *, 'LFR-DBG: ',i,j,size(zs,1)<i,size(zs,2)<j
@@ -133,31 +129,48 @@ contains
          end do
       end do
 
-      !print *, 'LFR-DBG: calling continue_at_boundary'; call flush (6)
+      print *, 'LFR-DBG: calling continue_at_boundary'; call flush (6)
+      !####PEREIRA
+     ! call continue_at_boundary(1, 1, 0., &
+     !                           ids-2, ide+2, jds-2, jde+2, &
+     !                           ids, ide, jds, jde, &
+     !                           itso, jtso, iteo, jteo, &
+     !                           za)
       call continue_at_boundary(1, 1, 0., &
-                                its - 2, ite + 2, jts - 2, jte + 2, &
+                                ims, ime, jms, jme, &
                                 ids, ide, jds, jde, &
-                                ips, ipe, jps, jpe, &
-                                its1, ite1, jts1, jte1, &
                                 itso, jtso, iteo, jteo, &
                                 za)
+     !####################################
+      jfts1 = jfds
+      ifts1 = ifds
+      jfte1 = jfde
+      ifte1 = ifde
 
-      jfts1 = snode(jfts, jfds, -istrip)
-      ifts1 = snode(ifts, ifds, -istrip)
-      jfte1 = snode(jfte, jfde, +istrip)
-      ifte1 = snode(ifte, ifde, +istrip)
-
-      !print *, 'LFR-DBG: calling interpolate_2d'; call flush (6)
-      call interpolate_2d( &
-         its - 2, ite + 2, jts - 2, jte + 2, &
-         its1 - 1, ite1 + 1, jts1 - 1, jte1 + 1, &
+      print *, 'LFR-DBG: calling interpolate_2d'; call flush (6)
+     !###### PEREIRA 
+    !  call interpolate_2d( &
+    !     ids - 2, ide + 2, jds - 2, jde + 2, &
+    !     its1 - 1, ite1 + 1, jts1 - 1, jte1 + 1, &
+    !     ifms, ifme, jfms, jfme, &
+    !     ifts1, ifte1, jfts1, jfte1, &
+    !     ir, jr, &
+    !     real(ids), real(jds), ifds + (ir - 1)*0.5, jfds + (jr - 1)*0.5, &
+    !     za, &
+    !     zsf)
+ 
+       call interpolate_2d( &
+         ims, ime, jms, jme, &
+         its1, ite1, jts1, jte1, &
          ifms, ifme, jfms, jfme, &
          ifts1, ifte1, jfts1, jfte1, &
          ir, jr, &
          real(ids), real(jds), ifds + (ir - 1)*0.5, jfds + (jr - 1)*0.5, &
          za, &
          zsf)
+     !##############################
 
+   print *, 'LFR-DBG: "ESTOU A SAIR DA ROTINA interpolate_z2fire Ja fiz os calculos'
    end subroutine interpolate_z2fire
 
    subroutine crash(s)
@@ -290,37 +303,33 @@ contains
       call crash(msg)
    end
 
-   subroutine set_ideal_coord(dxf, dyf, &
-                              ifds, ifde, jfds, jfde, &
-                              ifms, ifme, jfms, jfme, &
-                              ifts, ifte, jfts, jfte, &
-                              fxlong, fxlat &
-                              )
-      implicit none
-
-      real, intent(in)::dxf, dyf
-      integer, intent(in):: &
-         ifds, ifde, jfds, jfde, &
-         ifms, ifme, jfms, jfme, &
-         ifts, ifte, jfts, jfte
-      real, intent(out), dimension(ifms:ifme, jfms:jfme)::fxlong, fxlat
-
-      integer::i, j
-
-      do j = jfts, jfte
-         do i = ifts, ifte
-
-            fxlong(i, j) = (i - ifds + 0.5)*dxf
-            fxlat(i, j) = (j - jfds + 0.5)*dyf
-         end do
-      end do
-   end subroutine set_ideal_coord
+ !  subroutine set_ideal_coord(dxf, dyf, &
+ !                             ifds, ifde, jfds, jfde, &
+ !                             ifms, ifme, jfms, jfme, &
+ !                             fxlong, fxlat &
+ !                             )
+ !     implicit none
+ !
+ !     real, intent(in)::dxf, dyf
+ !     integer, intent(in):: &
+ !        ifds, ifde, jfds, jfde, &
+ !        ifms, ifme, jfms, jfme, &
+ !     real, intent(out), dimension(ifms:ifme, jfms:jfme)::fxlong, fxlat
+ !
+ !     integer::i, j
+ !
+ !     do j = jfds, jfde
+ !        do i = ifds, ifde
+ !
+ !           fxlong(i, j) = (i - ifds + 0.5)*dxf
+ !           fxlat(i, j) = (j - jfds + 0.5)*dyf
+ !        end do
+ !     end do
+ !  end subroutine set_ideal_coord
 
    subroutine continue_at_boundary(ix, iy, bias, &
                                    ims, ime, jms, jme, &
                                    ids, ide, jds, jde, &
-                                   ips, ipe, jps, jpe, &
-                                   its, ite, jts, jte, &
                                    itso, iteo, jtso, jteo, &
                                    lfn)
       implicit none
@@ -328,88 +337,90 @@ contains
       integer, intent(in)::ix, iy
       real, intent(in)::bias
       integer, intent(in)::ims, ime, jms, jme, &
-                            ids, ide, jds, jde, &
-                            ips, ipe, jps, jpe, &
-                            its, ite, jts, jte
+                           ids, ide, jds, jde
+                           
       integer, intent(out)::itso, jtso, iteo, jteo
       real, intent(inout), dimension(ims:ime, jms:jme)::lfn
 
       integer i, j
       character(len=128)::msg
-      integer::its1, ite1, jts1, jte1
-      integer, parameter::halo = 1
+      integer:: its1, ite1, jte1, jts1 
+      
+      call check_mesh_2dim(ids - 1, ide + 1, jds - 1, jde + 1, ims, ime, jms, jme)
 
-      call check_mesh_2dim(its - 1, ite + 1, jts - 1, jte + 1, ims, ime, jms, jme)
+      itso = ids
+      jtso = jds
+      iteo = ide
+      jteo = jde
 
-      itso = its
-      jtso = jts
-      iteo = ite
-      jteo = jte
+      its1 = ids
+      jts1 = jds
+      ite1 = ide
+      jte1 = jde
 
-      its1 = its
-      jts1 = jts
-      ite1 = ite
-      jte1 = jte
-      if (its .eq. ips .and. .not. its .eq. ids) its1 = its - halo
-      if (jts .eq. jps .and. .not. jts .eq. jds) jts1 = jts - halo
-      if (ite .eq. ipe .and. .not. ite .eq. ide) ite1 = ite + halo
-      if (jte .eq. jpe .and. .not. jte .eq. jde) jte1 = jte + halo
-!$OMP CRITICAL(SFIRE_UTIL_CRIT)
+
       write (msg, '(a,2i5,a,f5.2)') 'continue_at_boundary: directions', ix, iy, ' bias ', bias
       call message(msg, level=3)
-!$OMP END CRITICAL(SFIRE_UTIL_CRIT)
+
       if (ix .ne. 0) then
-         if (its .eq. ids) then
+
             do j = jts1, jte1
                lfn(ids - 1, j) = EX(lfn(ids, j), lfn(ids + 1, j))
             end do
             itso = ids - 1
-         end if
-         if (ite .eq. ide) then
+
+     
             do j = jts1, jte1
                lfn(ide + 1, j) = EX(lfn(ide, j), lfn(ide - 1, j))
             end do
             iteo = ide + 1
-         end if
-!$OMP CRITICAL(SFIRE_UTIL_CRIT)
-         write (msg, '(8(a,i5))') 'continue_at_boundary: x:', its, ':', ite, ',', jts, ':', jte, ' ->', itso, ':', iteo, ',', jts1 &
+     
+
+         write (msg, '(8(a,i5))') 'continue_at_boundary: x:', ids, ':', ide, ',', jds, ':', jde, ' ->', itso, ':', iteo, ',', jts1 &
                , ':', jte1
          call message(msg, level=3)
-!$OMP END CRITICAL(SFIRE_UTIL_CRIT)
+
       end if
+      
       if (iy .ne. 0) then
-         if (jts .eq. jds) then
+         if (jds .eq. jds) then
             do i = its1, ite1
                lfn(i, jds - 1) = EX(lfn(i, jds), lfn(i, jds + 1))
             end do
             jtso = jds - 1
          end if
-         if (jte .eq. jde) then
+         if (jde .eq. jde) then
             do i = its1, ite1
                lfn(i, jde + 1) = EX(lfn(i, jde), lfn(i, jde - 1))
             end do
             jteo = jde + 1
          end if
-!$OMP CRITICAL(SFIRE_UTIL_CRIT) 
-        write (msg, '(8(a,i5))') 'continue_at_boundary: y:', its, ':', ite, ',', jts, ':', jte, ' ->', its1, ':', ite1, ',', jtso &
+ 
+        write (msg, '(8(a,i5))') 'continue_at_boundary: y:', ids, ':', ide, ',', jds, ':', jde, ' ->', its1, ':', ite1, ',', jtso &
                                  , ':', jteo
-!$OMP END CRITICAL(SFIRE_UTIL_CRIT)
+
          call message(msg, level=3)
       end if
 
       if (ix .ne. 0 .and. iy .ne. 0) then
-         if (its .eq. ids .and. jts .eq. jds) lfn(ids - 1, jds - 1) = EX(lfn(ids, jds), lfn(ids + 1, jds + 1))
-         if (its .eq. ids .and. jte .eq. jde) lfn(ids - 1, jde + 1) = EX(lfn(ids, jde), lfn(ids + 1, jde - 1))
-         if (ite .eq. ide .and. jts .eq. jds) lfn(ide + 1, jds - 1) = EX(lfn(ide, jds), lfn(ide - 1, jds + 1))
-         if (ite .eq. ide .and. jte .eq. jde) lfn(ide + 1, jde + 1) = EX(lfn(ide, jde), lfn(ide - 1, jde - 1))
+         if (ids .eq. ids .and. jds .eq. jds) lfn(ids - 1, jds - 1) = EX(lfn(ids, jds), lfn(ids + 1, jds + 1))
+         if (ids .eq. ids .and. jde .eq. jde) lfn(ids - 1, jde + 1) = EX(lfn(ids, jde), lfn(ids + 1, jde - 1))
+         if (ide .eq. ide .and. jds .eq. jds) lfn(ide + 1, jds - 1) = EX(lfn(ide, jds), lfn(ide - 1, jds + 1))
+         if (ide .eq. ide .and. jde .eq. jde) lfn(ide + 1, jde + 1) = EX(lfn(ide, jde), lfn(ide - 1, jde - 1))
       end if
+      
       return
+      
    contains
+   
       real function EX(a, b)
 
          real a, b
+         
          EX = (1.-bias)*(2.*a - b) + bias*max(2.*a - b, a, b)
+         
       end function EX
+      
    end subroutine continue_at_boundary
 
    subroutine check_mesh_2dim(ids, ide, jds, jde, ims, ime, jms, jme)
@@ -427,6 +438,7 @@ contains
          call crash('check_mesh_2dim: memory dimensions too small')
       end if
    end subroutine check_mesh_2dim
+   
 
    subroutine check_mesh_3dim(ids, ide, kds, kde, jds, jde, ims, ime, kms, kme, jms, jme)
       integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, kds, kde, kms, kme
@@ -437,17 +449,17 @@ contains
 
    subroutine sum_2d_cells( &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jtfs, jfte, &
+      ifds, ifde, jfds, jfde, &
       v2, &
       ims, ime, jms, jme, &
-      its, ite, jts, jte, &
+      ids, ide, jds, jde, &
       v1)
       implicit none
 
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
-!real, intent(out)::v1(ims:ime,jms:jme)
-      integer, intent(in)::ifts, ifte, jtfs, jfte, ifms, ifme, jfms, jfme
-!real, intent(in)::v2(ifms:ifme,jfms:jfme)
+      integer, intent(in):: ids, ide, jds, jde, ims, ime, jms, jme
+      !real, intent(out):: v1(ims:ime,jms:jme)
+      integer, intent(in):: ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme
+      !real, intent(in):: v2(ifms:ifme,jfms:jfme)
       real, dimension(ims:ime, jms:jme), intent(out):: v1 ! INTRODUZIDO POR ISILDA CM
       real, dimension(ifms:ifme, jfms:jfme), intent(in):: v2 ! INTRODUZIDO POR ISILDA CM
 
@@ -456,13 +468,10 @@ contains
 !character(len=128)msg
       character(len=128):: msg !INTRODUZIDO POR ISILDA
 
-      call check_mesh_2dim(its, ite, jts, jte, ims, ime, jms, jme)
-      call check_mesh_2dim(ifts, ifte, jtfs, jfte, ifms, ifme, jfms, jfme)
-
-      isz1 = ite - its + 1
-      jsz1 = jte - jts + 1
-      isz2 = ifte - ifts + 1
-      jsz2 = jfte - jtfs + 1
+      isz1 = ide - ids + 1
+      jsz1 = jde - jds + 1
+      isz2 = ifde - ifds + 1
+      jsz2 = jfde - jfds + 1
 
       if (isz1 .le. 0 .or. jsz1 .le. 0 .or. isz2 .le. 0 .or. jsz2 .le. 0) then
          call message('all mesh sizes must be positive', level=0)
@@ -477,10 +486,10 @@ contains
          goto 9
       end if
 
-      do j = jts, jte
-         jbase = jtfs + jr*(j - jts)
-         do i = its, ite
-            ibase = ifts + ir*(i - its)
+      do j = jds, jde
+         jbase = jfds + jr*(j - jds)
+         do i = ids, ide
+            ibase = ifds + ir*(i - ids)
             t = 0.
             do joff = 0, jr - 1
                j_f = joff + jbase
@@ -497,9 +506,9 @@ contains
 
 9     continue
 !$OMP CRITICAL(SFIRE_UTIL_CRIT)
-      write (msg, 91) ifts, ifte, jtfs, jfte, ifms, ifme, jfms, jfme
+      write (msg, 91) ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme
       call message(msg, level=0)
-      write (msg, 91) its, ite, jts, jte, ims, ime, jms, jme
+      write (msg, 91) ids, ide, jds, jde, ims, ime, jms, jme
       call message(msg, level=0)
       write (msg, 92) 'input  mesh size:', isz2, jsz2
       call message(msg, level=0)
@@ -874,18 +883,18 @@ contains
 
    end subroutine meshdiff_2d
 
-   real pure function sum_2darray(its, ite, jts, jte, &
+   real pure function sum_2darray(ids, ide, jds, jde, &
                                   ims, ime, jms, jme, &
                                   a) result(saida)
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in)::a(ims:ime, jms:jme)
 
       integer:: i, j
       real:: t
 
       t = 0.
-      do j = jts, jte
-         do i = its, ite
+      do j = jds, jde
+         do i = ids, ide
             t = t + a(i, j)
          end do
       end do
@@ -893,18 +902,18 @@ contains
       saida = t
    end function sum_2darray
 
-   real pure function max_2darray(its, ite, jts, jte, &
+   real pure function max_2darray(ids, ide, jds, jde, &
                                   ims, ime, jms, jme, &
                                   a) result(saida)
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in)::a(ims:ime, jms:jme)
 
       integer:: i, j
       real:: T
 
       t = 0.
-      do j = jts, jte
-         do i = its, ite
+      do j = jds, jde
+         do i = ids, ide
             t = max(t, a(i, j))
          end do
       end do
@@ -912,11 +921,11 @@ contains
       saida = t
    end function max_2darray
 
-   subroutine print_2d_stats_vec(ips, ipe, jps, jpe, &
+   subroutine print_2d_stats_vec(ids, ide, jds, jde, &
                                  ims, ime, jms, jme, &
                                  ax, ay, name)
       implicit none
-      integer, intent(in)::ips, ipe, jps, jpe, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in), dimension(ims:ime, jms:jme)::ax, ay
       character(len=*), intent(in)::name
       integer:: i, j
@@ -924,17 +933,17 @@ contains
       real:: avg_a, max_a, min_a
       character(len=25)::id
       id = name
-      call print_2d_stats(ips, ipe, jps, jpe, &
+      call print_2d_stats(ids, ide, jds, jde, &
                           ims, ime, jms, jme, &
                           ax, id//'/x ')
-      call print_2d_stats(ips, ipe, jps, jpe, &
+      call print_2d_stats(ids, ide, jds, jde, &
                           ims, ime, jms, jme, &
                           ay, id//'/y ')
       avg_a = 0
       max_a = -huge(max_a)
       min_a = huge(min_a)
-      do j = jps, jpe
-         do i = ips, ipe
+      do j = jds, jde
+         do i = ids, ide
             ! print*,'THKM',j,i,jpe,ipe,ax(i,j),ay(i,j)
             ! call flush(6)
             t = sqrt(ax(i, j)**2 + ay(i, j)**2)
@@ -945,17 +954,17 @@ contains
             avg_a = avg_a + t
          end do
       end do
-      avg_a = avg_a/((ipe - ips + 1)*(jpe - jps + 1))
+      avg_a = avg_a/((ide - ids + 1)*(jde - jds + 1))
 !print*,'YYYavg_a',avg_a
 !call flush(6)
-      call print_stat_line(id//'/sz', ips, ipe, jps, jpe, min_a, max_a, avg_a)
+      call print_stat_line(id//'/sz', ids, ide, jds, jde, min_a, max_a, avg_a)
    end subroutine print_2d_stats_vec
 
-   subroutine print_stat_line(name, ips, ipe, jps, jpe, min_a, max_a, avg_a)
+   subroutine print_stat_line(name, ids, ide, jds, jde, min_a, max_a, avg_a)
 
       implicit none
 
-      integer, intent(in)::ips, ipe, jps, jpe
+      integer, intent(in)::ids, ide, jds, jde
       character(len=*), intent(in)::name
       real, intent(in)::min_a, max_a, avg_a
 
@@ -970,37 +979,37 @@ contains
       if (fire_print_msg .eq. 0) return
       id = name
 !$OMP CRITICAL(SFIRE_UTIL_CRIT)
-      write (msg, '(a,4i5,3g13.5)') id, ips, ipe, jps, jpe, min_a, max_a, avg_a
+      write (msg, '(a,4i5,3g13.5)') id, ids, ide, jds, jde, min_a, max_a, avg_a
 !$OMP END CRITICAL(SFIRE_UTIL_CRIT)
       call message(msg, level=2)
    end subroutine print_stat_line
 
-   subroutine print_3d_stats_by_slice(ips, ipe, kps, kpe, jps, jpe, &
+   subroutine print_3d_stats_by_slice(ids, ide, kds, kde, jds, jde, &
                                       ims, ime, kms, kme, jms, jme, &
                                       a, name)
       implicit none
-      integer, intent(in)::ips, ipe, jps, jpe, ims, ime, jms, jme, kms, kme, kps, kpe
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, kms, kme, kds, kde
       real, intent(in)::a(ims:ime, kms:kme, jms:jme)
       character(len=*), intent(in)::name
       integer::k
       character(len=128)::msg
-      do k = kps, kpe
+      
+      do k = kds, kde
 
-!$OMP CRITICAL(SFIRE_UTIL_CRIT)
          write (msg, '(i2,1x,a)') k, name
-!$OMP END CRITICAL(SFIRE_UTIL_CRIT)
-         call print_3d_stats(ips, ipe, k, k, jps, jpe, &
+
+         call print_3d_stats(ids, ide, k, k, jds, jde, &
                              ims, ime, kms, kme, jms, jme, &
                              a, msg)
       end do
 !print*,"estou a sair da rotina print_3d_stats_by_slice"
    end subroutine print_3d_stats_by_slice
 
-   subroutine print_3d_stats(ips, ipe, kps, kpe, jps, jpe, &
+subroutine print_3d_stats(ids, ide, kds, kde, jds, jde, &
                              ims, ime, kms, kme, jms, jme, &
                              a, name)
       implicit none
-      integer, intent(in)::ips, ipe, jps, jpe, ims, ime, jms, jme, kms, kme, kps, kpe
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, kms, kme, kds, kde
       real, intent(in)::a(ims:ime, kms:kme, jms:jme)
       character(len=*), intent(in)::name
       integer:: i, j, k
@@ -1011,9 +1020,9 @@ contains
       !print *, 'LFR-DBG para o nome enviado "', trim(name), '"'
       !print *, 'LFR-DBG min e max:', minval(a), maxval(a); call flush (6)
       bb = 0.
-      do j = jps, jpe
-         do k = kps, kpe
-            do i = ips, ipe
+      do j = jds, jde
+         do k = kds, kde
+            do i = ids, ide
                bb = bb + a(i, k, j)
             end do
          end do
@@ -1025,9 +1034,9 @@ contains
       max_a = -huge(max_a)
       min_a = huge(min_a)
       t = huge(t)
-      do j = jps, jpe
-         do k = kps, kpe
-            do i = ips, ipe
+      do j = jds, jde
+         do k = kds, kde
+            do i = ids, ide
                aa = a(i, k, j)
                if (aa .ne. aa .or. .not. aa .le. t .or. .not. aa .ge. -t) goto 9
                max_a = max(max_a, aa)
@@ -1038,89 +1047,91 @@ contains
       end do
       if (bb .ne. bb) goto 10
       if (fire_print_msg .le. 0) return
-      avg_a = avg_a/((ipe - ips + 1)*(jpe - jps + 1)*(kpe - kps + 1))
+      avg_a = avg_a/((ide - ids + 1)*(jde - jds + 1)*(kde - kds + 1))
 !print*,'GGGGGGG',avg_a
 !call flush(6)
 !print*,"vou levar o valor para print_stat_line"
 !call flush(6)
-      call print_stat_line(name, ips, ipe, jps, jpe, min_a, max_a, avg_a)
+      call print_stat_line(name, ids, ide, jds, jde, min_a, max_a, avg_a)
 !print*,"estou fora da print_stat_line"
 !call flush(6)
       return
 9     continue
-!$OMP CRITICAL(SFIRE_UTIL_CRIT)
+
       write (msg, 1) name, i, k, j, aa
       call message(msg, level=0)
 1     format(a30, '(', i6, ',', i6, ',', i6, ') = ', g13.5)
-      write (msg, 2) 'patch dimensions ', ips, ipe, kps, kpe, jps, jpe
+      write (msg, 2) 'patch dimensions ', ids, ide, kds, kde, jds, jde
       call message(msg, level=0)
       write (msg, 2) 'memory dimensions', ims, ime, kms, kme, jms, jme
       call message(msg, level=0)
 2     format(a, 6i8)
-!$OMP END CRITICAL(SFIRE_UTIL_CRIT)
-      call print_stat_line(name, ips, ipe, jps, jpe, aa, aa, aa)
+
+      call print_stat_line(name, ids, ide, jds, jde, aa, aa, aa)
       if (aa .ne. aa) goto 10
       msg = 'Invalid floating point number detected in '//name
       call crash(msg)
 10    msg = 'NaN detected in '//name
       call crash(msg)
 !print*,"estou na rotina print_3d_stats_by_slice vou sair da rotina print_3d_stats"
+
    end subroutine print_3d_stats
 
-   subroutine print_2d_stats(ips, ipe, jps, jpe, &
+
+   subroutine print_2d_stats(ids, ide, jds, jde, &
                              ims, ime, jms, jme, &
                              a, name)
       implicit none
-      integer, intent(in)::ips, ipe, jps, jpe, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in)::a(ims:ime, jms:jme)
       character(len=*), intent(in)::name
 
-      call print_3d_stats(ips, ipe, 1, 1, jps, jpe, &
+      call print_3d_stats(ids, ide, 1, 1, jds, jde, &
                           ims, ime, 1, 1, jms, jme, &
                           a, name)
 
    end subroutine print_2d_stats
 
-   real pure function avg_2darray(its, ite, jts, jte, &
+   real pure function avg_2darray(ids, ide, jds, jde, &
                                   ims, ime, jms, jme, &
                                   a) result(saida)
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in)::a(ims:ime, jms:jme)
 
-!avg_2darray = sum_2darray( its,ite,jts,jte,               &
+!avg_2darray = sum_2darray( ids,ide,jds,jde,               &
 !                           ims,ime,jms,jme,               &
-!                           a)/((ite-its+1)*(jte-jts+1))
+!                           a)/((ide-ids+1)*(jde-jds+1))
 
-      saida = sum_2darray(its, ite, jts, jte, &
+      saida = sum_2darray(ids, ide, jds, jde, &
                           ims, ime, jms, jme, &
-                          a)/((ite - its + 1)*(jte - jts + 1))
+                          a)/((ide - ids + 1)*(jde - jds + 1))
 
    end function avg_2darray
 
-   real pure function avg_2darray_vec(its, ite, jts, jte, &
+   real pure function avg_2darray_vec(ids, ide, jds, jde, &
                                       ims, ime, jms, jme, &
                                       ax, ay) result(saida)
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(in), dimension(ims:ime, jms:jme):: ax, ay
 
       integer:: i, j
       real:: t
       t = 0.
-      do j = jts, jte
-         do i = its, ite
+      do j = jds, jde
+         do i = ids, ide
             t = t + sqrt(ax(i, j)**2 + ay(i, j)**2)
          end do
       end do
-      t = t/((ite - its + 1)*(jte - jts + 1))
+      t = t/((ide - ids + 1)*(jde - jds + 1))
 !avg_2darray_vec = t
       saida = t
    end function avg_2darray_vec
 
-   subroutine print_array(its, ite, jts, jte, &
+   subroutine print_array(ids, ide, jds, jde, &
                           ims, ime, jms, jme, &
                           a, name, id)
 
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme, id
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, id
       real, intent(in), dimension(ims:ime, jms:jme):: a
       character(len=*), intent(in)::name
 
@@ -1128,10 +1139,10 @@ contains
       character(len=128)::msg
 
 !$OMP CRITICAL(SFIRE_UTIL_CRIT)
-      write (msg, *) name, ' start ', id, ' dim ', its, ite, jts, jte
+      write (msg, *) name, ' start ', id, ' dim ', ids, ide, jds, jde
       call message(msg)
-      do j = jts, jte
-         do i = its, ite
+      do j = jds, jde
+         do i = ids, ide
             write (msg, *) i, j, a(i, j)
             call message(msg)
          end do
@@ -1141,27 +1152,28 @@ contains
 !$OMP END CRITICAL(SFIRE_UTIL_CRIT)
    end subroutine print_array
 
-   subroutine write_array_m(its, ite, jts, jte, &
+   subroutine write_array_m(ids, ide, jds, jde, &
                             ims, ime, jms, jme, &
                             a, name, id)
 
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme, id
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, id
       real, intent(in), dimension(ims:ime, jms:jme):: a
       character(len=*), intent(in)::name
       !print *, "estou na subroutine write_array_m vou chamar a write_array_m3"
-      call write_array_m3(its, ite, 1, 1, jts, jte, &
+      call write_array_m3(ids, ide, 1, 1, jds, jde, &
                           ims, ime, 1, 1, jms, jme, &
                           a, name, id)
    end subroutine write_array_m
+   
 
-   subroutine write_array_m3(its, ite, kts, kte, jts, jte, &
+   subroutine write_array_m3(ids, ide, kds, kde, jds, jde, &
                              ims, ime, kms, kme, jms, jme, &
                              a, name, id)
 !use module_dm
 
       implicit none
 
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme, kts, kte, kms, kme, id
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme, kds, kde, kms, kme, id
       real, intent(in), dimension(ims:ime, kms:kme, jms:jme):: a
       character(len=*), intent(in)::name
 
@@ -1170,7 +1182,7 @@ contains
       character(len=128)::fname, msg
       !print *, "estou na subroutine write_array_m3"
       if (fire_print_file .eq. 0 .or. id .le. 0) return
-      call check_mesh_2dim(its, ite, jts, jte, ims, ime, jms, jme)
+      call check_mesh_2dim(ids, ide, jds, jde, ims, ime, jms, jme)
 !call wrf_get_nproc (nprocs)
 !call wrf_get_myproc(myproc)
       !print *, "estou na subroutine write_array_m3 vou escrever o nome do ficheiro", name
@@ -1191,16 +1203,16 @@ contains
 
       if (iu .le. 0) call crash('write_array_m: cannot find available fortran unit')
 !print*,"estou na subroutine write_array_m3 vou escrever a variavel", name
-      write (iu, 1) real(its)
-      write (iu, 1) real(ite)
-      write (iu, 1) real(jts)
-      write (iu, 1) real(jte)
-      write (iu, 1) real(kts)
-      write (iu, 1) real(kte)
-      write (iu, 1) (((a(i, k, j), i=its, ite), j=jts, jte), k=kts, kte)
+      write (iu, 1) real(ids)
+      write (iu, 1) real(ide)
+      write (iu, 1) real(jds)
+      write (iu, 1) real(jde)
+      write (iu, 1) real(kds)
+      write (iu, 1) real(kde)
+      write (iu, 1) (((a(i, k, j), i=ids, ide), j=jds, jde), k=kds, kde)
       close (iu)
-      write (msg, 2) name, '(', its, ':', ite, ',', jts, ':', jte, ',', &
-         kts, ':', kte, ') -> ', trim(fname)
+      write (msg, 2) name, '(', ids, ':', ide, ',', jds, ':', jde, ',', &
+         kds, ':', kde, ') -> ', trim(fname)
 !print*,"vou sair da rotina write_array_m3"
 !$OMP END CRITICAL(SFIRE_UTIL_CRIT)
       call message(msg)
@@ -1213,11 +1225,11 @@ contains
 
    end subroutine write_array_m3
 
-   subroutine read_array_2d_real(filename, a, its, ite, jts, jte, ims, ime, jms, jme)
+   subroutine read_array_2d_real(filename, a, ids, ide, jds, jde, ims, ime, jms, jme)
 !use module_dm
       implicit none
 
-      integer, intent(in)::its, ite, jts, jte, ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde, ims, ime, jms, jme
       real, intent(out), dimension(ims:ime, jms:jme):: a
       character(len=*), intent(in)::filename
 
@@ -1231,13 +1243,13 @@ contains
       if (nprocs .ne. 1 .or. myproc .ne. 0 .or. mythread .ne. 0) &
          call crash('read_array_2d: parallel execution not supported')
 
-      mi = ite - its + 1
-      mj = jte - jts + 1
+      mi = ide - ids + 1
+      mj = jde - jds + 1
       write (msg, 2) 'reading array size ', mi, mj, ' from file ', trim(filename)
 2     format(a, 2i6, 2a)
       call message(msg, level=1)
 
-      call check_mesh_2dim(its, ite, jts, jte, ims, ime, jms, jme)
+      call check_mesh_2dim(ids, ide, jds, jde, ims, ime, jms, jme)
 
       iu = 0
       do i = 11, 99
@@ -1255,14 +1267,14 @@ contains
          call message(msg, level=0)
          goto 10
       end if
-      do i = its, ite
-         read (iu, *, err=10) (a(i, j), j=jts, jte)
+      do i = ids, ide
+         read (iu, *, err=10) (a(i, j), j=jds, jde)
       end do
       close (iu, err=11)
-      call print_2d_stats(its, ite, jts, jte, &
+      call print_2d_stats(ids, ide, jds, jde, &
                           ims, ime, jms, jme, &
                           a, filename)
-      write (6, *) its, jts, a(its, jts), loc(a(its, jts))
+      write (6, *) ids, jds, a(ids, jds), loc(a(ids, jds))
       return
 
 9     msg = 'Error opening file '//trim(filename)
@@ -1298,199 +1310,151 @@ contains
          saida = t
       end if
    end function snode
+   
+   
 
-   subroutine print_chsum(id, &
-                          ims, ime, kms, kme, jms, jme, &
-                          ids, ide, kds, kde, jds, jde, &
-                          ips, ipe, kps, kpe, jps, jpe, &
-                          istag, kstag, jstag, &
-                          a, name)
+    subroutine print_chsum(id,&
+                 ims, ime, kms, kme, jms, jme, &
+                ids, ide, kds, kde, jds, jde, a, name)
 
-      !USE module_dm , only : wrf_dm_bxor_integer
+    ! Defini��o dos argumentos de entrada
+    integer, intent(in) :: id
+    integer, intent(in) ::ims, ime, kms, kme, jms, jme, & 
+                         ids, ide, kds, kde, jds, jde  ! �ndices principais
+    real, intent(in), dimension(ims:ime, kms:kme, jms:jme) :: a
+    character(len=*) :: name
 
-      integer, intent(in):: id, &
-                            ims, ime, kms, kme, jms, jme, &
-                            ids, ide, kds, kde, jds, jde, &
-                            ips, ipe, kps, kpe, jps, jpe, &
-                            istag, kstag, jstag
-      real, intent(in), dimension(ims:ime, kms:kme, jms:jme)::a
-      character(len=*)::name
+    ! Vari�veis locais
+    integer :: i, j, k, iel, lsum
+    real :: rel
+    character(len=256) :: msg
+    equivalence(rel, iel)
+    
+    if (fire_print_msg .le. 0) return
+    
+    ! Inicializa��o
+    lsum = 0
 
-      integer::lsum
-      integer::i, j, k, n, ipe1, jpe1, kpe1, iel, thread, is, js, ks
-      integer, save::psum, gsum
-      real::rel
-      equivalence(rel, iel)
-!character(len=256)msg
-      character(len=256):: msg
-
-      if (fire_print_msg .le. 0) return
-      
-      ipe1 = ifval(ipe .eq. ide .and. istag .ne. 0, ipe + 1, ipe)
-      kpe1 = ifval(kpe .eq. kde .and. kstag .ne. 0, kpe + 1, kpe)
-      jpe1 = ifval(jpe .eq. jde .and. jstag .ne. 0, jpe + 1, jpe)
-      is = ifval(istag .ne. 0, 1, 0)
-      ks = ifval(kstag .ne. 0, 1, 0)
-      js = ifval(jstag .ne. 0, 1, 0)
-
-if(size(a,3)<jpe1) write (*,fmt='(A,6(I3.3,1X))') 'LFR-DBG: ,jpe,jde,jstag,jpe1,jme,jms:',jpe,jde,jstag,jpe1,jme,jms
-
-      lsum = 0
-      do j = jps, jpe1
-         do k = kps, kpe1 - 1
-            do i = ips, ipe1
-               rel = a(i, k, j)
-               lsum = ieor(lsum, iel)
+    ! Loop sobre a matriz principal para calcular o checksum
+    do j = jds, jde
+        do k = kds, kde
+            do i = ids, ide
+                rel = a(i, k, j)
+                lsum = ieor(lsum, iel)  ! Opera��o bit a bit XOR para c�lculo do checksum
             end do
-         end do
-      end do
+        end do
+    end do
 
-      thread = 0
+    ! Impress�o dos resultados do checksum
+    write(msg, '(i6, 1x, a10, " dims ", 6i5, " chsum ", z8.8)') id, name, ids, ide, kds, kde, jds, jde, lsum
+    call message(msg)
 
-      if (thread .eq. 0) psum = 0
-!$OMP BARRIER
-!$OMP CRITICAL(CHSUM)
-      psum = ieor(psum, lsum)
-!$OMP END CRITICAL(CHSUM)
-!$OMP BARRIER
+    end subroutine print_chsum
 
-      if (thread .eq. 0) then
-         !gsum = wrf_dm_bxor_integer ( psum )
-         gsum = psum
-         write (msg, 1) id, name, ids, ide + is, kds, kde + ks, jds, jde + js, gsum
-1        format(i6, 1x, a10, ' dims', 6i5, ' chsum ', z8.8)
-         call message(msg)
-      end if
 
-   end subroutine print_chsum
+    real function fun_real(fun,  ims, ime, kms, kme, jms, jme, &
+                                 ids, ide, kds, kde, jds, jde, a, b)
+    implicit none
 
-   real function fun_real(fun, &
-                          ims, ime, kms, kme, jms, jme, &
-                          ids, ide, kds, kde, jds, jde, &
-                          ips, ipe, kps, kpe, jps, jpe, &
-                          istag, kstag, jstag, &
-                          a, b)
+    ! Argumentos de entrada
+    integer, intent(in) :: fun,  ims, ime, kms, kme, jms, jme, &
+                                 ids, ide, kds, kde, jds, jde
+    real, intent(in), dimension(ims:ime, kms:kme, jms:jme) :: a, b
 
-      !USE module_dm , only : wrf_dm_sum_real , wrf_dm_max_real
+    ! Vari�veis locais
+    real :: lsum, gsum, void, psum
+    integer :: i, j, k
+    logical :: dosum, domax, domin
+    character(len=256) :: msg
 
-      integer, intent(in)::  fun, &
-                            ims, ime, kms, kme, jms, jme, &
-                            ids, ide, kds, kde, jds, jde, &
-                            ips, ipe, kps, kpe, jps, jpe, &
-                            istag, kstag, jstag
-      real, intent(in), dimension(ims:ime, kms:kme, jms:jme)::a, b
-
-      real::lsum, void
-      integer::i, j, k, n, ipe1, jpe1, kpe1, iel, thread, is, js, ks
-      real, save::psum, gsum
-      real::rel
-      logical:: dosum, domax, domin
-      character(len=256):: msg
-
-      ipe1 = ifval(ipe .eq. ide .and. istag .ne. 0, ipe + 1, ipe)
-      kpe1 = ifval(kpe .eq. kde .and. kstag .ne. 0, kpe + 1, kpe)
-      jpe1 = ifval(jpe .eq. jde .and. jstag .ne. 0, jpe + 1, jpe)
-      is = ifval(istag .ne. 0, 1, 0)
-      ks = ifval(kstag .ne. 0, 1, 0)
-      js = ifval(jstag .ne. 0, 1, 0)
-
-      if (fun .eq. REAL_SUM) then
-         void = 0.
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = lsum + a(i, k, j)
-               end do
+    ! Inicializa��o de vari�veis e l�gica para diferentes fun��es
+    if (fun .eq. REAL_SUM) then
+        void = 0.
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = lsum + a(i, k, j)
+                end do
             end do
-         end do
-      elseif (fun .eq. RNRM_SUM) then
-         void = 0.
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = lsum + sqrt(a(i, k, j)*a(i, k, j) + b(i, k, j)*b(i, k, j))
-               end do
+        end do
+    elseif (fun .eq. RNRM_SUM) then
+        void = 0.
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = lsum + sqrt(a(i, k, j)**2 + b(i, k, j)**2)
+                end do
             end do
-         end do
-      elseif (fun .eq. REAL_MAX) then
-         void = -huge(lsum)
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = max(lsum, a(i, k, j))
-               end do
+        end do
+    elseif (fun .eq. REAL_MAX) then
+        void = -huge(lsum)
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = max(lsum, a(i, k, j))
+                end do
             end do
-         end do
-      elseif (fun .eq. REAL_AMAX) then
-         void = -huge(lsum)
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = max(lsum, abs(a(i, k, j)))
-               end do
+        end do
+    elseif (fun .eq. REAL_AMAX) then
+        void = -huge(lsum)
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = max(lsum, abs(a(i, k, j)))
+                end do
             end do
-         end do
-      elseif (fun .eq. REAL_MIN) then
-         void = huge(lsum)
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = min(lsum, a(i, k, j))
-               end do
+        end do
+    elseif (fun .eq. REAL_MIN) then
+        void = huge(lsum)
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = min(lsum, a(i, k, j))
+                end do
             end do
-         end do
-      elseif (fun .eq. RNRM_MAX) then
-         void = 0.
-         lsum = void
-         do j = jps, jpe1
-            do k = kps, kpe1
-               do i = ips, ipe1
-                  lsum = max(lsum, sqrt(a(i, k, j)*a(i, k, j) + b(i, k, j)*b(i, k, j)))
-               end do
+        end do
+    elseif (fun .eq. RNRM_MAX) then
+        void = 0.
+        lsum = void
+        do j = jds, jde
+            do k = kds, kde
+                do i = ids, ide
+                    lsum = max(lsum, sqrt(a(i, k, j)**2 + b(i, k, j)**2))
+                end do
             end do
-         end do
-      else
-         call crash('fun_real: bad fun')
-      end if
+        end do
+    else
+        call crash('fun_real: bad fun')
+    end if
 
-      if (lsum .ne. lsum) call message('fun_real: WARNING: NaN detected')
+    ! Verifica��o de NaN
+    if (lsum .ne. lsum) call message('fun_real: WARNING: NaN detected')
 
-      dosum = fun .eq. REAL_SUM .or. fun .eq. RNRM_SUM
-      domax = fun .eq. REAL_MAX .or. fun .eq. REAL_AMAX .or. fun .eq. RNRM_MAX
-      domin = fun .eq. REAL_MIN
+    ! Ajustes para soma, m�ximo e m�nimo
+    dosum = fun .eq. REAL_SUM .or. fun .eq. RNRM_SUM
+    domax = fun .eq. REAL_MAX .or. fun .eq. REAL_AMAX .or. fun .eq. RNRM_MAX
+    domin = fun .eq. REAL_MIN
 
-!$OMP SINGLE
+    ! Calcula o resultado final
+    psum = void
+    if (dosum) psum = psum + lsum
+    if (domax) psum = max(psum, lsum)
+    if (domin) psum = min(psum, lsum)
 
-      psum = void
-!$OMP END SINGLE
-!$OMP BARRIER
+    gsum = psum  ! Simplifica��o para remover paralelismo
 
-!$OMP CRITICAL(RDSUM)
+    ! Verifica��o final de NaN
+    if (gsum .ne. gsum) call message('fun_real: WARNING: NaN detected')
 
-      if (dosum) psum = psum + lsum
-      if (domax) psum = max(psum, lsum)
-      if (domin) psum = min(psum, lsum)
-!$OMP END CRITICAL(RDSUM)
+    ! Retorno do valor final
+    fun_real = gsum
 
-!$OMP BARRIER
-
-!$OMP SINGLE
-
-      !if(dosum) gsum = wrf_dm_sum_real ( psum )
-      !if(domax) gsum = wrf_dm_max_real ( psum )
-      if (gsum .ne. gsum) call message('fun_real: WARNING: NaN detected')
-!$OMP END SINGLE
-
-!$OMP BARRIER
-
-      fun_real = gsum
-
-   end function fun_real
+    end function fun_real
 
    subroutine sfire_debug_hook(fire_debug_hook_sec)
       integer, intent(in)::fire_debug_hook_sec
@@ -1505,6 +1469,327 @@ if(size(a,3)<jpe1) write (*,fmt='(A,6(I3.3,1X))') 'LFR-DBG: ,jpe,jde,jstag,jpe1,
       !call wrf_dm_bcast_integer(abs(go),1)
 !enddo
    end subroutine sfire_debug_hook
+
+
+   subroutine build_NFFL(ifms, ifme, jfms ,jfme,&
+                              ifds, ifde, jfds ,jfde,&
+                              fxlat, fxlong,tcomb)
+
+  implicit none
+  real :: con_grau
+  integer, intent(IN) :: ifms, ifme, jfms, jfme
+  integer, intent(IN) :: ifds, ifde, jfds, jfde
+  real, dimension(ifms:ifme, jfms:jfme), intent(OUT) :: tcomb
+  real, dimension(ifms:ifme, jfms:jfme),intent(IN) :: fxlat, fxlong
+  real :: point_latitude, point_longitude, grid_latitude,&
+            grid_longitude
+  real ::  distance
+  integer :: i, j, ia, ja, bb,px,py
+  integer, parameter :: escrever = 1 ! FLAG para escrever no ficheiro para ser lido no grads (1 => sim)
+  integer, parameter :: rows = 24286
+  integer, parameter :: ncols = 16439
+  real, parameter :: cellsize = 0.00022511079999887
+  real, parameter :: first_lat = 36.855458166893
+  real, parameter :: first_lon = -9.7545209749261
+  real, parameter :: res_ant_init = 1000.0
+ ! real, dimension(rows) :: vlat
+ ! real, dimension(ncols) :: vlon
+ ! integer, dimension(rows) :: jj
+ ! integer, dimension(ncols) :: ii
+  real, allocatable :: vlat(:)
+  real, allocatable :: vlon(:)
+  integer, allocatable :: jj(:)
+  integer, allocatable :: ii(:)
+ ! real, dimension(ncols,rows) :: idclass
+  real, allocatable :: idclass(:,:)
+  character(len=255) :: filename
+  character(len=255) :: lixo
+  logical :: file_exists
+  logical :: value_unit
+  character(len=80) :: fname
+  integer :: irec,recl_size,pp
+  real :: res_ant 
+  real :: p1,p2,p3,p4,p5
+  real :: lat1,lon1,lat2,lon2,delta_lat,delta_lon,a,c,R
+
+  allocate(vlat(rows))
+  allocate(vlon(ncols))
+  allocate(jj(rows))
+  allocate(ii(ncols))
+  allocate(idclass(ncols,rows))
+
+  
+  filename = "./data_comb/comb_port1.txt"
+
+  inquire (file=trim(filename), exist=file_exists)
+  if (.not. file_exists) then
+    print *, "nao existe o ficheiro de modelos de combustivel"
+    stop
+  end if
+  
+
+  open (32, file=trim(adjustl(filename)), status='old', &
+        access='sequential', form='formatted', action='read')
+
+
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) ((idclass(i, j), i=1, ncols),j=rows,1,-1 )
+   
+
+   py=0
+   do j = rows,1,-1
+     vlat(j) = first_lat + j*cellsize
+     if((vlat(j) >= fxlat(ifds, jfds)) .and.&
+          (vlat(j) <= fxlat(ifde,jfde)))then
+    py=1+py
+    jj(py)=j
+    endif
+   enddo
+
+   px=0
+    do i = 1, ncols
+      vlon(i) = first_lon + i*cellsize
+   if((vlon(i) >= fxlong(ifds, jfds)) .and.&
+          (vlon(i) <= fxlong(ifde,jfde)))then
+     px=px+1
+     ii(px)=i
+    endif
+    enddo
+
+  do j = 1, rows
+    do i = 1, ncols
+      if (idclass(i, j) == -9999) then
+        idclass(i, j) = 14.
+      end if
+    end do
+  end do
+
+
+!******Vai achar a posicao do no na malha cartesiana*********
+
+  con_grau = 3.14159265358979323846/180.0
+  R=6372.795477598*1000.0
+  tcomb(:,:) = 14.0
+  do j = jfds-1,jfde+1
+       do i = ifds-1, ifde+1
+         res_ant=res_ant_init
+         grid_latitude = fxlat(i, j)
+         grid_longitude = fxlong(i, j)
+          do ja = 1,py
+            do ia=1,px
+            point_latitude = vlat(jj(ja))
+            point_longitude = vlon(ii(ia))
+            if((abs(grid_latitude - point_latitude) <= 0.02) .and. &
+                (abs(grid_longitude - point_longitude) <= 0.02)) then
+                  lat1 = point_latitude*con_grau
+                  lon1 = point_longitude*con_grau
+                  lat2 = grid_latitude*con_grau
+                  lon2 = grid_longitude*con_grau
+                  delta_lat = (lat2 - lat1)
+                  delta_lon = (lon2 - lon1)
+                  a = sin(delta_lat/2.0)**2.0 + cos(lat1)*cos(lat2)*sin(delta_lon/2.0)**2.0
+                  c = 2.0*atan2(sqrt(a), sqrt(1.0 - a))
+                  distance = R*c
+                  if(distance < res_ant) then
+                     res_ant = distance
+                     tcomb(i, j) = idclass(ii(ia),jj(ja))
+                   end if
+              endif
+            enddo
+           end do
+         end do
+       end do
+
+  
+  if (escrever == 1) then
+    write (fname, '(a)') 'NFFL_High_resol.bin'
+    recl_size=4*((ifde - ifds + 1)*(jfde - jfds + 1))
+    open(90,file=trim(adjustl(fname)),form='unformatted',access='direct',&
+         status='replace',recl=recl_size)
+    irec = 1
+     write(90, rec=irec) ((tcomb(i, j), i=ifds,ifde), j=jfds, jfde)
+    close (90)
+  end if
+
+
+  deallocate(vlat)
+  deallocate(vlon)
+  deallocate(jj)
+  deallocate(ii)
+  deallocate(idclass)
+
+
+  close(32)
+
+
+   end subroutine build_NFFL
+
+   subroutine build_ZSF(ifms, ifme, jfms ,jfme,&
+                              ifds, ifde, jfds ,jfde,&
+                              fxlat, fxlong,ZSF)
+
+  implicit none
+  real :: con_grau
+  integer, intent(IN) :: ifms, ifme, jfms, jfme
+  integer, intent(IN) :: ifds, ifde, jfds, jfde
+  real, dimension(ifms:ifme, jfms:jfme), intent(OUT) :: ZSF
+  real, dimension(ifms:ifme, jfms:jfme), intent(IN) :: fxlat, fxlong
+  real :: point_latitude, point_longitude, grid_latitude,&
+            grid_longitude
+  real ::  distance
+  integer :: i, j, ia, ja, bb,px,py
+  integer, parameter :: escrever = 1 ! FLAG para escrever no ficheiro para ser lido no grads (1 => sim)
+  integer, parameter :: rows = 18001
+  integer, parameter :: ncols = 10801
+  real, parameter :: cellsize = 0.00027777777777778
+  real, parameter :: first_lat = 36.999861111111
+  real, parameter :: first_lon = -10.000138888889
+  real, parameter :: res_ant_init = 1000.0
+ ! real, dimension(rows) :: vlat
+ ! real, dimension(ncols) :: vlon
+ ! integer, dimension(rows) :: jj
+ ! integer, dimension(ncols) :: ii
+  real, allocatable :: vlat(:)
+  real, allocatable :: vlon(:)
+  integer, allocatable :: jj(:)
+  integer, allocatable :: ii(:)
+ ! real, dimension(ncols,rows) :: topo_txt
+  real, allocatable ::  topo_txt(:,:)
+  character(len=255) :: filename
+  character(len=255) :: lixo
+  logical :: file_exists
+  logical :: value_unit
+  character(len=80) :: fname
+  integer :: irec,recl_size,pp
+  real :: res_ant 
+  real :: p1,p2,p3,p4,p5
+  real :: lat1,lon1,lat2,lon2,delta_lat,delta_lon,a,c,R
+  real :: sta,fin
+  
+  allocate(vlat(rows))
+  allocate(vlon(ncols))
+  allocate(jj(rows))
+  allocate(ii(ncols))
+  allocate(topo_txt(ncols,rows))
+  
+  filename = "./data_TOPO/topo_25m_portugal.txt"
+
+  inquire (file=trim(filename), exist=file_exists)
+  if (.not. file_exists) then
+    print *, "nao existe o ficheiro de modelos de Topografia"
+    stop
+  end if
+  
+  open (32, file=trim(adjustl(filename)), status='old', &
+        access='sequential', form='formatted', action='read')
+
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) lixo, lixo
+  read (32, *) ((topo_txt(i, j), i=1, ncols),j=rows,1,-1 )
+   
+  print *, 'LFR->Topo lido'
+   py=0
+   do j = rows,1,-1
+     vlat(j) = first_lat + j*cellsize
+     if((vlat(j) >= fxlat(ifds, jfds)) .and.&
+          (vlat(j) <= fxlat(ifde,jfde)))then
+    py=1+py
+    jj(py)=j
+    endif
+   enddo
+
+   px=0
+    do i = 1, ncols
+      vlon(i) = first_lon + i*cellsize
+   if((vlon(i) >= fxlong(ifds, jfds)) .and.&
+          (vlon(i) <= fxlong(ifde,jfde)))then
+     px=px+1
+     ii(px)=i
+    endif
+    enddo
+  print *, 'LFR->PY-PX'
+
+  do j = 1, rows
+    do i = 1, ncols
+      if (topo_txt(i, j) == -9999) then
+        topo_txt(i, j) = 14.
+      end if
+    end do
+  end do
+
+  print *, 'LFR->topo 14'
+!******Vai achar a posicao do no na malha cartesiana*********
+
+  con_grau = 3.14159265358979323846/180.0
+  R=6372.795477598*1000.0
+  ZSF(:,:) = 0.0
+  call cpu_time(sta)
+  do j = jfds-1,jfde+1
+       do i = ifds-1, ifde+1
+         call cpu_time(fin)
+         print *,'LFR J=',j," ate ",jfde+1," ","i=",i," ate ",ifde+1,fin-sta
+         sta = fin
+         res_ant=res_ant_init
+         grid_latitude = fxlat(i, j)
+         grid_longitude = fxlong(i, j)
+          do ja = 1,py
+            do ia=1,px
+              point_latitude = vlat(jj(ja))
+              point_longitude = vlon(ii(ia))
+              if((abs(grid_latitude - point_latitude) <= 0.02) .and. &
+                 (abs(grid_longitude - point_longitude) <= 0.02)) then
+                  lat1 = point_latitude*con_grau
+                  lon1 = point_longitude*con_grau
+                  lat2 = grid_latitude*con_grau
+                  lon2 = grid_longitude*con_grau
+                  delta_lat = (lat2 - lat1)
+                  delta_lon = (lon2 - lon1)
+                  a = sin(delta_lat/2.0)**2.0 + cos(lat1)*cos(lat2)*sin(delta_lon/2.0)**2.0
+                  c = 2.0*atan2(sqrt(a), sqrt(1.0 - a))
+                  distance = R*c
+                  if(distance < res_ant) then
+                     res_ant = distance
+                     ZSF(i, j) = topo_txt(ii(ia),jj(ja))
+                   end if
+                endif
+               enddo
+              end do
+           end do
+       end do
+  
+
+  if (escrever == 1) then
+    write (fname, '(a)') 'ZSF_High_resol.bin'
+    recl_size=4*((ifde - ifds + 1)*(jfde - jfds + 1))
+    open(90,file=trim(adjustl(fname)),form='unformatted',access='direct',&
+         status='replace',recl=recl_size)
+    irec = 1
+     write(90, rec=irec) ((ZSF(i, j), i=ifds,ifde), j=jfds, jfde)
+    close (90)
+  end if
+
+  deallocate(vlat)
+  deallocate(vlon)
+  deallocate(jj)
+  deallocate(ii)
+  deallocate(topo_txt)
+
+
+  close(32)
+
+  
+  end subroutine build_ZSF
+
+
 
 end module module_fr_sfire_util
 

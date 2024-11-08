@@ -3921,6 +3921,8 @@ real      ,DIMENSION(:,:)     ,POINTER   :: fgrnhfx
 real      ,DIMENSION(:,:)     ,POINTER   :: fgrnqfx
 real      ,DIMENSION(:,:)     ,POINTER   :: fcanhfx
 real      ,DIMENSION(:,:)     ,POINTER   :: fcanqfx
+real      ,DIMENSION(:,:)     ,POINTER   :: FRP !INTRODUZIDO POR ISILDA CM
+real      ,DIMENSION(:,:)     ,POINTER   :: tburn ! Introduzido por Luiz Flávio
 real      ,DIMENSION(:,:)     ,POINTER   :: ros
 real      ,DIMENSION(:,:)     ,POINTER   :: burnt_area_dt
 real      ,DIMENSION(:,:)     ,POINTER   :: flame_length

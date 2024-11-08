@@ -8,14 +8,13 @@ module sfireMod
       mynum, &
       mchnum, &
       master_num, &
-      nodei0, nodej0, &
-      nmachs, & !INTRUDOZIDO ISILDA
-      nodemxp, & !INTRUDOZIDO ISILDA
-      nodemyp, & !INTRUDOZIDO ISILDA
-      nxbeg, & !INTRUDOZIDO ISILDA
-      nxend, & !INTRUDOZIDO ISILDA
-      nybeg, & !INTRUDOZIDO ISILDA
-      nyend !INTRUDOZIDO ISILDA
+      nmachs, & !INTRODUZIDO ISILDA
+      nodemxp, & !INTRODUZIDO ISILDA
+      nodemyp, & !INTRODUZIDO ISILDA
+      nxbeg, & !INTRODUZIDO ISILDA
+      nxend, & !INTRODUZIDO ISILDA
+      nybeg, & !INTRODUZIDO ISILDA
+      nyend !INTRODUZIDO ISILDA
 
    use ParLib, only: parf_barrier
    private
@@ -34,10 +33,8 @@ contains
          ReadNamelistsfireFile, &
          DumpNamelistsfireFile
 
-      use mem_grid, only: ngrid, deltaxn, deltayn, dtlongn, time, istp, &
-                          nnzp, nnxp, nnyp, grid_g, npatch, zt, nzpmax, &
-                          zmn,          deltax, & ! intent(in)
-                          deltay! intent(in)! dtlong, ESTES SO INTROD POR ISILDA
+      use mem_grid, only: ngrid, deltaxn, deltax, deltayn, dtlongn, time, istp, &
+                          nnzp, nnxp, nnyp, grid_g, npatch, zt, nzpmax ! dtlong, ESTES SO INTROD POR ISILDA
 
       use mem_sfire, only: &
          sfire_g, &
@@ -70,20 +67,9 @@ contains
                               , mean_size, std_size, qsc, count_in_grid, sfire_info_area &
                               , sfire_info_time, sfire_info_frp, sfire_info_lat &
                               , sfire_info_lon,alloc_dealloc_sfire_info, valid_ij &
-                              , comm_aer_data, testModSfire2Brams
+                              , comm_aer_data, testModSfire2Brams, test_only &
+                              , fill_sfire_info_and_get_emissions
 
-      use aer1_list, only : spc_alloc,spc_name, src, ddp, wdp, fdda, offline, on ,off &
-      ,mode_alloc, mode_name, aer_name, nspecies_aer=> nspecies,nmodes, bburn
-
-      use mem_aer1, only: aer1_vars, aer1_g
-
-      use mem_plume_chem1, only:  &
-         plume_fre_g, &
-         iflam_frac, &
-         istd_frp, &
-         imean_frp, &
-         imean_size, &
-         istd_size
 
       implicit none
 
@@ -95,7 +81,6 @@ contains
 
       !Local Variables
       integer            :: ng, a_step, i, j, k, ierr, np
-      integer :: ispc,imode
       real ::hf(nnxp(1), nnyp(1))
       real ::ch(nnxp(1), nnyp(1))
       real ::qf(nnxp(1), nnyp(1))
@@ -130,129 +115,74 @@ contains
       real ::temp_press(nnxp(1), nnyp(1))
       real ::temp_theta(nnzp(1), nnxp(1), nnyp(1))
       real ::picpi
-      real ::a, b, step_isil
+      real ::a, b, step_isil, dxf,dyf
       integer, parameter :: ifm = 1 ! MUDAR ESTE PARAMETRO PARA UM LOOP SE EXISTIREM MAIS GRIDS
 
-      !if (mcphys_type /= 0) then
+      if (mcphys_type /= 0) then
 
-      real :: aer(nspecies_sfire,nnxp(1),nnyp(1))
-      real :: aerLocal(nspecies_sfire,mxp,myp)
-      real :: pvar(mxp,myp)
-      integer :: i1,i2,j1,j2
-      logical :: ok
-      real :: flam_frac_com(nnxp(1),nnyp(1))
-      real :: mean_frp_com(nnxp(1),nnyp(1))
-      real :: std_frp_com(nnxp(1),nnyp(1))
-      real :: mean_size_com(nnxp(1),nnyp(1))
-      real :: std_size_com(nnxp(1),nnyp(1))
-
-      !BRAMS BBURN2 equivalent specie
-      real :: bburn2(mzp,mxp,myp)      
-
-      if (mcphys_type .ne. 0) then
          print *, " SFIRE PRECISA DE MCPHYS_TYPE=0"
          stop
       end if
-
-      bburn2 = 0.0
-
-      i1 = nodei0(mynum,ifm)+1
-      i2 = nodei0(mynum,ifm)+nodemxp(mynum,ifm)
-      j1 = nodej0(mynum,ifm)+1
-      j2 = nodej0(mynum,ifm)+nodemyp(mynum,ifm)
 
       varn = 'SFLUX_T'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       turb_g(ngrid)%sflux_t, temp_sflux_t)
 
-      !  print*,"passei SFLUX_T"
 
       varn = 'SFLUX_R'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       turb_g(ngrid)%sflux_r, temp_sflux_r)
-      !  print*,"passei SFLUX_R"
-! Gathering Data
-      !  varn = 'ACONPR'
-      !  call gatherData(2, varn,1, nnxp(1), nnyp(1), &
-      !       nmachs, mchnum, mynum, master_num,                    &
-      !       cuparm_g(ngrid)%aconpr, temp_aconpr)
 
       varn = 'ACCPR'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accpr, temp_accpr)
-      !      print*,"passei ACCPR"
       varn = 'ACCPP'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accpp, temp_accpp)
-      !    print*,"passei ACCPP"
       varn = 'ACCPS'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accps, temp_accps)
-      !   print*,"passei ACCPS"
       varn = 'ACCPA'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accpa, temp_accpa)
-      !  print*,"passei ACCPA"
       varn = 'ACCPG'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accpg, temp_accpg)
-      !  print*,"passei ACCPG"
       varn = 'ACCPH'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       micro_g(ngrid)%accph, temp_accph)
-      ! print*,"passei ACCPH"
-      !*****nao estamos a acoplar o jules***
-      ! varn = 'T2MJ'
-      ! call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
-      !      nmachs, mchnum, mynum, master_num,                    &
-      !     jules_g(ngrid)%t2mj, temp_t2mj)
-      ! print*,"passei T2MJ"
-      !***** fim de jules*****
       varn = 'TOPT'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       grid_g(ngrid)%topt, temp_topt)
-      ! print*,"passei TOPT"
-      !****Nao estamos a acoplar o jules****
-      ! varn = 'RV2MJ'
-      ! call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
-      !      nbasic_g(machs, mchnum, mynum, master_num,                    &
-      !      jules_g(ngrid)%rv2mj, temp_rv2mj)
-      !****Fim do jules*****
       varn = 'RV' !***ATENCAO acoplamos o leaf
       call gatherData(3, varn, 1, nnzp(1), nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       basic_g(ngrid)%rv, temp_rv2mj)
-      ! print*,"passei RV"
-      !*** FIM DO LEAF****
       varn = 'PP'
       call gatherData(3, varn, 1, nnzp(1), nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       basic_g(ngrid)%pp, temp_pp)
-      ! print*,"passei PP"
       varn = 'GLAT'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       grid_g(ngrid)%glat, temp_glat)
-      ! print*,"passei GLAT"
       varn = 'GLON'
-      !print *,"LFR-DBG: GLON",size(grid_g(ngrid)%glon,1),"=",nnxp(1),size(grid_g(ngrid)%glon,2),"=",nnyp(1)
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       grid_g(ngrid)%glon, temp_glon)
-      !print*,"passei GLON"
+
       !======================================================================
       do np = 1, npatch
          varn = 'VEG_ROUGH'
-         !print *,"LFR-DBG: VEG_ROUGH",size(leaf_g(ngrid)%veg_rough,1),"=",nnxp(1),size(leaf_g(ngrid)%veg_rough,2),"=",nnyp(1)
          call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                          nmachs, mchnum, mynum, master_num, &
                          leaf_g(ngrid)%veg_rough(:, :, np), &
@@ -266,27 +196,11 @@ contains
                          leaf_g(ngrid)%leaf_class(:, :, np), &
                          temp_veg_class(:, :, np))
       end do
-      !  ! print*,"passei LEAF_CLASS"
-      !===================================================================
-
-      !print*,"passei VEG_ROUGH"
-      !   varn = 'ZT'
-      !   call gatherData(1, varn, 1, nzpmax, &
-      !       nmachs, mchnum, mynum, master_num,                    &
-      !       zt, temp_zt)
 
       varn = 'RTGT'
       call gatherData(2, varn, 1, nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       grid_g(ngrid)%rtgt, temp_rtgt)
-      !  print*, "passei RTGT"
-
-      ! varn = 'DNP'
-      ! call gatherData(3, varn, 1, nnzp(1),nnxp(1), nnyp(1), &
-      !      nmachs, mchnum, mynum, master_num,                    &
-      !      stilt_g(ngrid)%dnp, temp_dnp)
-
-      ! print*,"passei DNP"
       varn = 'UP'
       call gatherData(3, varn, 1, nnzp(1), nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
@@ -311,160 +225,156 @@ contains
       call gatherData(3, varn, 1, nnzp(1), nnxp(1), nnyp(1), &
                       nmachs, mchnum, mynum, master_num, &
                       basic_g(ngrid)%pi0, temp_pi0)
-      ! print*,"passei PI0"
-      !print*,'NPATCH***********'
-      !print*,npatch
-      !    print*,"passei DN0"
-      !print *,'LFR-DBG 01: Entrando no setor serial'; call flush(6)
 
-      ! print*,"******istp, time***** =",istp, time
       if (mchnum == master_num) then
          
-         !================ LFR =================
+         print *, 'Inicializando a vegetacao MODIS e comuncação com o BRAMS'
          if (time ==0.0) call readModisVeg(temp_rtgt,deltax/1000.0) !Setup inicial  do BRAMS<->SFIRE
-         goto 1000
-         !======================================
+         if (.not. test_only) then
 
-         do k = 1, nnzp(1)
-            do j = 1, nnyp(1)
-               do i = 1, nnxp(1)
-                  temp_h(k, i, j) = zt(k)*temp_rtgt(i, j)
+            do k = 1, nnzp(1)
+               do j = 1, nnyp(1)
+                  do i = 1, nnxp(1)
+                     temp_h(k, i, j) = zt(k)*temp_rtgt(i, j)
+                  end do
                end do
             end do
-         end do
 
-         k = 2
-         !MFF - Troquei nnxp e nnyp de lugar
-         do j = 1, nnyp(1)
-            do i = 1, nnxp(1)
-               picpi = (temp_pi0(k, i, j) + temp_pp(k, i, j))*cpi
-               temp_press(i, j) = p00*picpi**cpor
-               temp_t2mj(i, j) = temp_theta(k, i, j)*picpi !ACOPLAMENTO DO LEAF
+            k = 2
+            !MFF - Troquei nnxp e nnyp de lugar
+            do j = 1, nnyp(1)
+               do i = 1, nnxp(1)
+                  picpi = (temp_pi0(k, i, j) + temp_pp(k, i, j))*cpi
+                  temp_press(i, j) = p00*picpi**cpor
+                  temp_t2mj(i, j) = temp_theta(k, i, j)*picpi !ACOPLAMENTO DO LEAF
+               end do
             end do
-         end do
 
-! temp_topt(:,:)=60.0
+            !print *,'LFR-DBG 02: se for 1 timestep, inicialização: ', istp; call flush(6)
+            if ((istp - 1) == 0) then
 
-         ! print*, " Iniciando driver do sfire "
-         !call flush (6)
-         ! print*,'DEBUG :: -----------------'
-         ! print*, 'JULES INICIO'
-         !print*,'============='
-         !print*,'DEBUG ::::temp_h::::'
-         !print*,temp_h
-         !print*,'============='
-         !print*,'DEBUG ::::temp_veg_rough::::'
-         !print*,temp_veg_rough
-         !print*,'FIM DEBUG :: -----------------'
-         !--- Inicializando a grade do JULES ---
+               print *, "LFR-DBG - FIST ISTP ", istp, 'Inicializando...' 
+               call GlobalLatLonGrid(temp_glon, temp_glat)
 
-         !print *,'LFR-DBG 02: se for 1 timestep, inicialização: ', istp; call flush(6)
-         if ((istp - 1) == 0) then
+               !print *, " Criando namelist do SFIRE"
+               call flush (6)
+               call CreateNamelistsfireFile(config_flags)
 
-            print *, "LFR-DBG - FIST ISTP ", istp, 'Inicializando...' 
-            call GlobalLatLonGrid(temp_glon, temp_glat)
+               !print *, " Pegando namelist do SFIRE"
+               call flush (6)
+               call GetNamelistsfireFileName(config_flags)
 
-            !print *, " Criando namelist do SFIRE"
-            call flush (6)
-            call CreateNamelistsfireFile(config_flags)
+               !print *, " Lendo namelist do SFIRE"
+               call flush (6)
+               call ReadNamelistsfireFile(config_flags)
 
-            !print *, " Pegando namelist do SFIRE"
-            call flush (6)
-            call GetNamelistsfireFileName(config_flags)
+               write (*, "(50('-'),/,a)") 'Reading model control file (./sfire.in)...'
 
-            !print *, " Lendo namelist do SFIRE"
-            call flush (6)
-            call ReadNamelistsfireFile(config_flags)
+               call get_ijk_from_subgrid(config_flags)
 
-            write (*, "(50('-'),/,a)") 'Reading model control file (./sfire.in)...'
+               sfire_g%sr_x = config_flags%sr_x
+               sfire_g%sr_y = config_flags%sr_y
+
+
+               sfire_g%dx = deltaxn(ngrid)
+               sfire_g%dy = deltayn(ngrid)
+
+               sfire_g%itimestep = istp - 1
+               sfire_g%num_tiles = 1
+               sfire_g%num_tiles_spec = 1
+
+               call nullify_sfire_brams(sfire_g)
+               !print *,'LFR-DBG 04: Alocando sfrire_brams (sfire_g)- passando config_flags (size)'; call flush(6)
+               call alloc_sfire_brams(sfire_g, config_flags%ims, config_flags%ime, config_flags%kms, config_flags%kme &
+                                      , config_flags%jms, config_flags%jme, config_flags%ifms, config_flags%ifme &
+                                      , config_flags%jfms, config_flags%jfme, config_flags%nfmc)
+
+               ! Putting zero on all values
+               !print *,'LFR-DBG 05: Zerando sfire_g que receberá o BRAMS'; call flush(6)
+               call zero_sfire_brams(sfire_g)
+
+               if (associated(sfire_g%i_start)) then; deallocate (sfire_g%i_start); nullify (sfire_g%i_start); end if
+               if (associated(sfire_g%i_end)) then; deallocate (sfire_g%i_end); nullify (sfire_g%i_end); end if
+               if (associated(sfire_g%j_start)) then; deallocate (sfire_g%j_start); nullify (sfire_g%j_start); end if
+               if (associated(sfire_g%j_end)) then; deallocate (sfire_g%j_end); nullify (sfire_g%j_end); end if
+
+               allocate (sfire_g%i_start(sfire_g%num_tiles))
+               allocate (sfire_g%i_end(sfire_g%num_tiles))
+               allocate (sfire_g%j_start(sfire_g%num_tiles))
+               allocate (sfire_g%j_end(sfire_g%num_tiles))
+            
+                sfire_g%i_start(1) = config_flags%ids
+                sfire_g%i_end(1) = config_flags%ide
+                sfire_g%j_start(1) = config_flags%jds
+                sfire_g%j_end(1) = config_flags%jde
+            
+               !print *,'LFR-DBG 07: Fazendo swap BRAMS - Leva do BRAMS para o sfire_g'; call flush(6)
+               call swap_brams_sfire(sfire_g, & !temp_aconpr,&
+                                     temp_accpr, temp_accpp, temp_accps, temp_accpa, &
+                                     temp_accpg, temp_accph, temp_t2mj,temp_topt, &
+                                     temp_rv2mj, temp_pp, temp_glat, temp_glon, &
+                                     temp_veg_rough, temp_h, temp_dn0, temp_up, &
+                                     temp_vp, temp_press)
+
+
+               !print *, " Iniciando o SFIRE"
+               !call flush (6)
+
+               step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
+
+               !print *,'LFR-DBG 08: Chamando o sfire_driver_init para...?'; call flush(6)
+               call sfire_driver_em_init(sfire_g, config_flags, time, step_isil)
+
+               where (ieee_is_nan(sfire_g%rho)) sfire_g%rho = 0.00001
+               where (sfire_g%rho <= 0.00000000000000000000001) sfire_g%rho = 0.00001
+
+               where (ieee_is_nan(sfire_g%dz8w)) sfire_g%dz8w = 1.
+               where (sfire_g%dz8w < 1.) sfire_g%dz8w = 1.
+
+            end if !(time==0)
+
+            !print *,'LFR-DBG 09: Marco!!! Passou pela inicialização do tempo ZERO !!! '; call flush(6)
+
+            sfire_g%itimestep = istp
+            print *, "sfire_g%itimestep =", sfire_g%itimestep
+            !print *, " Convertendo indices das variaveis para o SFIRE - simu run"
+            !call flush (6)
 
             ! get fire mesh dimensions
-            !print *,'LFR-DBG 03: Pegando IJK da subgrade, config_flags'; call flush(6)
+            !print *,'LFR-DBG 10: Pega ijk da subgrade fire'; call flush(6)
+
             call get_ijk_from_subgrid(config_flags)
+
+            !print *, " sai do get_ijk"
+            !call flush (6)
 
             sfire_g%sr_x = config_flags%sr_x
             sfire_g%sr_y = config_flags%sr_y
+            print *, 'LFR-DBG: sr_x,sr_y:',sfire_g%sr_x ,sfire_g%sr_y
 
             sfire_g%dx = deltaxn(ngrid)
             sfire_g%dy = deltayn(ngrid)
 
-            sfire_g%itimestep = istp - 1
-            sfire_g%num_tiles = 1
-            sfire_g%num_tiles_spec = 1
+            sfire_g%i_start(1) = config_flags%ids
+            sfire_g%i_end(1) = config_flags%ide
+            sfire_g%j_start(1) = config_flags%jds
+            sfire_g%j_end(1) = config_flags%jde
 
-            call nullify_sfire_brams(sfire_g)
-            !print *,'LFR-DBG 04: Alocando sfrire_brams (sfire_g)- passando config_flags (size)'; call flush(6)
-            call alloc_sfire_brams(sfire_g, config_flags%ims, config_flags%ime, config_flags%kms, config_flags%kme &
-                                   , config_flags%jms, config_flags%jme, config_flags%ifms, config_flags%ifme &
-                                   , config_flags%jfms, config_flags%jfme, config_flags%nfmc)
-            ! Putting zero on all values
-            !print *,'LFR-DBG 05: Zerando sfire_g que receberá o BRAMS'; call flush(6)
-            call zero_sfire_brams(sfire_g)
 
-!LFR - DBG
-                        ! do i=1,size(sfire_g%fmep,1)
-                        !    do j=1,size(sfire_g%fmep,3)
-                        !       write(40,*) i,j, sfire_g%fmep(i, 1, j)
-                        !    end do
-                        ! end do
 
-            if (associated(sfire_g%i_start)) then; deallocate (sfire_g%i_start); nullify (sfire_g%i_start); end if
-            if (associated(sfire_g%i_end)) then; deallocate (sfire_g%i_end); nullify (sfire_g%i_end); end if
-            if (associated(sfire_g%j_start)) then; deallocate (sfire_g%j_start); nullify (sfire_g%j_start); end if
-            if (associated(sfire_g%j_end)) then; deallocate (sfire_g%j_end); nullify (sfire_g%j_end); end if
-            allocate (sfire_g%i_start(sfire_g%num_tiles))
-            allocate (sfire_g%i_end(sfire_g%num_tiles))
-            allocate (sfire_g%j_start(sfire_g%num_tiles))
-            allocate (sfire_g%j_end(sfire_g%num_tiles))
-
-            sfire_g%i_start(1) = config_flags%ips
-            sfire_g%i_end(1) = config_flags%ipe
-            sfire_g%j_start(1) = config_flags%jps
-            sfire_g%j_end(1) = config_flags%jpe
-
-            !print *, " Lendo dados de combustiveis do SFIRE -sim 0"
-            !call flush (6)
-            !print *,'LFR-DBG 06: Lendo dados de combustíveis - para lat, lon e veg'; call flush(6)
-            call combinit_user(temp_veg_class, temp_glat, temp_glon, sfire_g%nfuel_cat)
-
-            ! print*,"sfire_g%nfuel_cat - sfcsdrive - no init"
-            ! print*,sfire_g%nfuel_cat
-
-            !print *, " Convertendo indices das variaveis para o SFIRE - simu 0"
-            !call flush (6)
-            !print *,'LFR-DBG 07: Fazendo swap BRAMS - Leva do BRAMS para o sfire_g'; call flush(6)
-            call swap_brams_sfire(sfire_g, & !temp_aconpr,&
+            !print *,'LFR-DBG 11: Chamando o swap_brams -> fire'; call flush(6)
+            call swap_B_brams_sfire(sfire_g, & !temp_aconpr,&
                                   temp_accpr, temp_accpp, temp_accps, temp_accpa, &
-                                  temp_accpg, temp_accph, temp_t2mj, temp_topt, &
+                                  temp_accpg, temp_accph, temp_t2mj,temp_topt, &
                                   temp_rv2mj, temp_pp, temp_glat, temp_glon, &
                                   temp_veg_rough, temp_h, temp_dn0, temp_up, &
                                   temp_vp, temp_press)
 
-            !gradiente da topografia (Atencao ao loop deve ser jfts no acplamento final)
-            a = sfire_g%dx/sfire_g%sr_x
-            b = sfire_g%dy/sfire_g%sr_y
-            do i = 2, nnxp(1) - 1
-               do j = 2, nnyp(1) - 1
-                  sfire_g%dzdxf(i, j) = (sfire_g%zsf(i + 1, j) - sfire_g%zsf(i - 1, j))/(2.*a)
-                  sfire_g%dzdyf(i, j) = (sfire_g%zsf(i, j + 1) - sfire_g%zsf(i, j - 1))/(2.*b)
-               end do
-            end do
-
-            ! print*,'LIXO DRIVE1'
-            ! print*,'DZDXF'
-            ! print*, sfire_g%dzdxf
-            ! print*,'DZDYF'
-            ! print*,sfire_g%dzdyf
-
-            !print *, " Iniciando o SFIRE"
-            call flush (6)
-
-            step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
-
-            !print *, 'ISILDA1 INIT :: time, dtlongn', time, dtlongn
+            !print *, " sai do swap_brams_sfire"
             !call flush (6)
-            !print *,'LFR-DBG 08: Chamando o sfire_driver_init para...?'; call flush(6)
-            call sfire_driver_em_init(sfire_g, config_flags, time, step_isil)
+
+
+            sfire_g%rainc = 0.
 
             where (ieee_is_nan(sfire_g%rho)) sfire_g%rho = 0.00001
             where (sfire_g%rho <= 0.00000000000000000000001) sfire_g%rho = 0.00001
@@ -472,265 +382,220 @@ contains
             where (ieee_is_nan(sfire_g%dz8w)) sfire_g%dz8w = 1.
             where (sfire_g%dz8w < 1.) sfire_g%dz8w = 1.
 
-         end if !(time==0)
-         
-         !print *,'LFR-DBG 09: Marco!!! Passou pela inicialização do tempo ZERO !!! '; call flush(6)
+            !print *, " Integrando o SFIRE "
+            !call flush (6)
 
-         sfire_g%itimestep = istp
-         print *, "sfire_g%itimestep =", sfire_g%itimestep
-         !print *, " Convertendo indices das variaveis para o SFIRE - simu run"
-         !call flush (6)
+            ! Comentando apenas para testar a inicializacao do modulo e compilacao
+            step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
+            print *,'LFR-DBG 13: iniciando a integração do sfire, step',step_isil, 'time: ',time; call flush(6)
 
-         ! get fire mesh dimensions
-         !print *,'LFR-DBG 10: Pega ijk da subgrade fire'; call flush(6)
-         call get_ijk_from_subgrid(config_flags)
+            call sfire_driver_em_step(sfire_g, config_flags, time, step_isil)
 
-         !print *, " sai do get_ijk"
-         !call flush (6)
+        !   ###########################################################################
+        !   passagem da area em fogo e do FRP
 
-         sfire_g%sr_x = config_flags%sr_x
-         sfire_g%sr_y = config_flags%sr_y
-         print *, 'LFR-DBG: sr_x,sr_y:',sfire_g%sr_x ,sfire_g%sr_y
+            do j=config_flags%jfds,config_flags%jfde
+              do i=config_flags%ifds,config_flags%ifde
+                  if(sfire_g%FRP(i,j) > 0.) then
+                  write(51,*)'FIRE_AREA',sfire_g%fire_area(i,j)
+                  write(52,*)'FRP',sfire_g%FRP(i,j)
+                  endif
+               enddo
+            enddo 
+        !   ############################################################################
 
-         sfire_g%dx = deltaxn(ngrid)
-         sfire_g%dy = deltayn(ngrid)
+            !passagem das unidades W/m^2 para K m/s
 
-         sfire_g%i_start(1) = config_flags%ips
-         sfire_g%i_end(1) = config_flags%ipe
-         sfire_g%j_start(1) = config_flags%jps
-         sfire_g%j_end(1) = config_flags%jpe
-
-         !print *,'LFR-DBG 11: Chamando o swap_brams -> fire'; call flush(6)
-         call swap_brams_sfire(sfire_g, & !temp_aconpr,&
-                               temp_accpr, temp_accpp, temp_accps, temp_accpa, &
-                               temp_accpg, temp_accph, temp_t2mj, temp_topt, &
-                               temp_rv2mj, temp_pp, temp_glat, temp_glon, &
-                               temp_veg_rough, temp_h, temp_dn0, temp_up, &
-                               temp_vp, temp_press)
-
-         !print *, " sai do swap_brams_sfire"
-         !call flush (6)
-
-         !gradiente da topografia (Atencao ao loop deve ser jfts no acplamento final)
-         !print *,'LFR-DBG 12: Calculando o gradiente da topografia'; call flush(6)
-         a = sfire_g%dx/sfire_g%sr_x
-         b = sfire_g%dy/sfire_g%sr_y
-         do i = 2, nnxp(1) - 1
-            do j = 2, nnyp(1) - 1
-               sfire_g%dzdxf(i, j) = (sfire_g%zsf(i + 1, j) - sfire_g%zsf(i - 1, j))/(2.*a)
-               sfire_g%dzdyf(i, j) = (sfire_g%zsf(i, j + 1) - sfire_g%zsf(i, j - 1))/(2.*b)
+            hf(:, :) = 0.0
+            ch(:, :) = 0.0
+            do j = config_flags%jds, config_flags%jde
+               do i = config_flags%ids, config_flags%ide
+                  ! reduz = dn0(2,i,j) * 1004.
+                  reduz = sfire_g%rho(i, 2, j)*1004
+                  hf(i, j) = sfire_g%grnhfx(i, j)/reduz
+                  ch(i, j) = sfire_g%canhfx(i, j)/reduz
+                  !if(hf(i,j) > 0.)then
+                  !print*,"ISILDA4 - h"
+                  !print*,hf(i,j)
+                  !endif
+               end do
             end do
-         end do
 
+            !passagem das unidades de W/m^2 para Kg/kg m/s
 
-         ! print*,'LIXO DRIVE2'
-         ! print*,'DZDXF'
-         ! print*, sfire_g%dzdxf
-         ! print*,'DZDYF'
-         ! print*,sfire_g%dzdyf
-
-         sfire_g%rainc = 0.
-
-         where (ieee_is_nan(sfire_g%rho)) sfire_g%rho = 0.00001
-         where (sfire_g%rho <= 0.00000000000000000000001) sfire_g%rho = 0.00001
-
-         where (ieee_is_nan(sfire_g%dz8w)) sfire_g%dz8w = 1.
-         where (sfire_g%dz8w < 1.) sfire_g%dz8w = 1.
-
-         !print *, " Integrando o SFIRE "
-         !call flush (6)
-
-         ! Comentando apenas para testar a inicializacao do modulo e compilacao
-         step_isil = (dtlongn(ngrid)*((config_flags%dx/1000.)*6.))/dtlongn(ngrid)
-         print *,'LFR-DBG 13: iniciando a integração do sfire, step',step_isil, 'time: ',time; call flush(6)
-
-         call sfire_driver_em_step(sfire_g, config_flags, time, step_isil)
-
-         !passagem das unidades W/m^2 para K m/s
-
-         hf(:, :) = 0.0
-         ch(:, :) = 0.0
-         do j = config_flags%jps, config_flags%jpe
-            do i = config_flags%ips, config_flags%ipe
-               ! reduz = dn0(2,i,j) * 1004.
-               reduz = sfire_g%rho(i, 2, j)*1004
-               hf(i, j) = sfire_g%grnhfx(i, j)/reduz
-               ch(i, j) = sfire_g%canhfx(i, j)/reduz
-               !if(hf(i,j) > 0.)then
-               !print*,"ISILDA4 - h"
-               !print*,hf(i,j)
-               !endif
+            qf(:, :) = 0.0
+            cq(:, :) = 0.0
+            do j = config_flags%jds, config_flags%jde
+               do i = config_flags%ids, config_flags%ide
+                  !reduz = dn0(2,i,j) * 2.5e6
+                  reduz = sfire_g%rho(i, 2, j)*2.5e6
+                  qf(i, j) = sfire_g%grnqfx(i, j)/reduz
+                  cq(i, j) = sfire_g%canqfx(i, j)/reduz
+                !   if(sfire_g%grnqfx(i, j) > 0.)then
+                !   print*,"ISILDA4 - h"
+                !   print*,'IM-DBG:FORA:i,j,qf(i,j),sfire_g%grnqfx(i, j)= ',i,j,qf(i,j),sfire_g%grnqfx(i, j)
+                !   endif
+               end do
             end do
-         end do
 
-         ! print*,'isilda1-',time
-         ! print*,'heat1'
-         ! print*,sfire_g%grnhfx
-         ! print*,'heat2'
-         ! print*,hf
+            !print *, 'LFR-DBG 14: somando ao calor do  Jules'; call flush (6)
+            ! soma ao calor do  Jules
 
-         !passagem das unidades de W/m^2 para Kg/kg m/s
+            do j = 1, config_flags%jds - 1
+               do i = 1, nnxp(1)
 
-         qf(:, :) = 0.0
-         cq(:, :) = 0.0
-         do j = config_flags%jps, config_flags%jpe
-            do i = config_flags%ips, config_flags%ipe
-               !reduz = dn0(2,i,j) * 2.5e6
-               reduz = sfire_g%rho(i, 2, j)*2.5e6
-               qf(i, j) = sfire_g%grnqfx(i, j)/reduz
-               cq(i, j) = sfire_g%canqfx(i, j)/reduz
-               ! if(qf(i,j) > 0.)then
-               ! print*,"ISILDA4 - le"
-               ! print*,qf(i,j)
-               ! endif
+                  temp_sflux_t(i, j) = temp_sflux_t(i, j)
+                  temp_sflux_r(i, j) = temp_sflux_r(i, j)
+               end do
             end do
-         end do
+            do j = config_flags%jde + 1, nnyp(1)
+               do i = 1, nnxp(1)
 
-         !print *, 'LFR-DBG 14: somando ao calor do  Jules'; call flush (6)
-         ! soma ao calor do  Jules
-
-         do j = 1, config_flags%jps - 1
-            do i = 1, nnxp(1)
-
-               temp_sflux_t(i, j) = temp_sflux_t(i, j)
-               temp_sflux_r(i, j) = temp_sflux_r(i, j)
+                  temp_sflux_t(i, j) = temp_sflux_t(i, j)
+                  temp_sflux_r(i, j) = temp_sflux_r(i, j)
+               end do
             end do
-         end do
-         do j = config_flags%jpe + 1, nnyp(1)
-            do i = 1, nnxp(1)
+            do j = config_flags%jds, config_flags%jde
+               do i = 1, config_flags%ids - 1
 
-               temp_sflux_t(i, j) = temp_sflux_t(i, j)
-               temp_sflux_r(i, j) = temp_sflux_r(i, j)
+                  temp_sflux_t(i, j) = temp_sflux_t(i, j)
+                  temp_sflux_r(i, j) = temp_sflux_r(i, j)
+               end do
             end do
-         end do
-         do j = config_flags%jps, config_flags%jpe
-            do i = 1, config_flags%ips - 1
+            do j = config_flags%jds, config_flags%jde
+               do i = config_flags%ide + 1, nnxp(1)
 
-               temp_sflux_t(i, j) = temp_sflux_t(i, j)
-               temp_sflux_r(i, j) = temp_sflux_r(i, j)
+                  temp_sflux_t(i, j) = temp_sflux_t(i, j)
+                  temp_sflux_r(i, j) = temp_sflux_r(i, j)
+                  !LFR-DEB beg
+                  if(istp>5) then
+                     write (78,*) i,j,temp_sflux_t(i, j),hf(i, j),ch(i, j)
+                  endif
+                  !LFR-DEB end
+               end do
             end do
-         end do
-         do j = config_flags%jps, config_flags%jpe
-            do i = config_flags%ipe + 1, nnxp(1)
+            do j = config_flags%jds, config_flags%jde
+               do i = config_flags%ids, config_flags%ide
+                  temp_sflux_t(i, j) = temp_sflux_t(i, j) + hf(i, j) + ch(i, j)
+                  !  print*,"temp_sflux_t",temp_sflux_t(i,j)
+                  !  call flush(6)
+                  temp_sflux_r(i, j) = temp_sflux_r(i, j) + qf(i, j) + cq(i, j)
+                  !  print*,"temp_sflux_r",temp_sflux_r(i,j)
+                  !  call flush(6)
 
-               temp_sflux_t(i, j) = temp_sflux_t(i, j)
-               temp_sflux_r(i, j) = temp_sflux_r(i, j)
-               !LFR-DEB beg
-               if(istp>5) then
-                  write (78,*) i,j,temp_sflux_t(i, j),hf(i, j),ch(i, j)
-               endif
-               !LFR-DEB end
+               end do
             end do
-         end do
-         do j = config_flags%jps, config_flags%jpe
-            do i = config_flags%ips, config_flags%ipe
-               temp_sflux_t(i, j) = temp_sflux_t(i, j) + hf(i, j) + ch(i, j)
-               !  print*,"temp_sflux_t",temp_sflux_t(i,j)
-               !  call flush(6)
-               temp_sflux_r(i, j) = temp_sflux_r(i, j) + qf(i, j) + cq(i, j)
-               !  print*,"temp_sflux_r",temp_sflux_r(i,j)
-               !  call flush(6)
 
-            end do
-         end do
-
-         !***********************************************************************************
-         !***********************************************************************************
-         !***********************************************************************************
-1000     continue
-      
-         !***********************************************************************************
-         !****************** Simulando um caso em pontos de grade **********************
-         ! O teste abaixo chama uma rotina que faz um teste com focos lidos de um arquivo
-         !***********************************************************************************
-         if (time == 60.0) then
-            call testModSfire2Brams(temp_glat,temp_glon,temp_dn0)
          end if
-
-         ! print*,'DEBUG :: -----------------'
-         ! print*,'jules'
-         ! print*,temp_sflux_t
-         ! print*,'FIM DEBUG :: ------------'
-         !paraleliza
-         !print*,"ISILDA"
-         !print*,"TEMP_SFLUX_T"
-         !print*,temp_sflux_t
-         !print*,"ISILDA"
-         !print*,"sfire_g%grnhfx"
-         !print*,sfire_g%grnhfx
-         !print*,"ISILDA"
-         !print*,"TEMP_SFLUX_R"
-         !print*,temp_sflux_r
-         !print*,"ISILDA"
-         !print*,"sfire_g%grnqfx"
-         !print*,sfire_g%grnqfx
+      
+         
+         if (test_only) then 
+            !Se for um teste preencha os dados de teste para enviar ao BRAMS
+            call testModSfire2Brams(temp_glat,temp_glon,temp_dn0,time) 
+         else
+            !Caso contrário, preencher os valores de sfire_info e gerar emissões
+            call fill_sfire_info_and_get_emissions(config_flags%ifds,config_flags%ifde &
+                                ,config_flags%jfds,config_flags%jfde &
+                                ,sfire_g%FRP,sfire_g%fire_area &
+                                ,sfire_g%xlat,sfire_g%xlong &
+                                ,sfire_g%tburn,temp_glat,temp_glon,temp_dn0)
+         end if
+         
          !print *, 'LFR-DBG 15: fim do setor serial'; call flush (6)
       end if
       !call Broadcast(mynum, master_num, "sync")
       !print *, 'LFR-DBG 16: ', mynum, 'Saindo do setor serial'; call flush (6)
-      ! print*,"estou no sfire vou entrar no PARALELISMO - ISTP - TIME =",istp,time
-!   call parf_barrier(0)
-      ! print*,"dentro drive vou para Broadcast- temp_sflux_t"
-!!!!!!   call Broadcast(temp_sflux_t, master_num,   'temp_sflux_t' )
-      ! print*,"dentro drive sai do Broadcast- temp_sflux_t",mynum
-      ! print*,"dentro drive vou para Broadcast- temp_sflux_R"
-!!!!!   call Broadcast(temp_sflux_r, master_num,   'temp_sflux_r' )
-      ! print*,"dentro drive sai do Broadcast- temp_sflux_R",mynum
-      ! print*,"dentro drive vou para o swap"
-      !call swap_sfire_brams( temp_sflux_t,temp_sflux_r, &
-      !        turb_g(ngrid)%sflux_t,turb_g(ngrid)%sflux_r)
-      !print*,"dentro drive sai do swap"
 
       ! Comunica os pontos calculados para todos os processadores
       ! E determina aer1_g vars, valores médios e desvio padrão
       call comm_aer_data(mzp, mxp, myp, ia, iz, ja, jz)
 
-      !    print*,"passei SFLUX_T"
-
-      ! varn = 'SFLUX_R'
-      ! call gatherData(2, varn,1, nnxp(1), nnyp(1), &
-      !      nmachs, mchnum, mynum, master_num,                    &
-      !      temp_sflux_r,turb_g(ngrid)%sflux_r)
-
-      !LFR call swap_sfire_brams(temp_sflux_t, temp_sflux_r, &
-      !LFR                       turb_g(ngrid)%sflux_t, turb_g(ngrid)%sflux_r)
-      
-      
-                            !-- scattering local data
-      !print*, "turb_g(ngrid)%sflux_t", turb_g(ngrid)%sflux_t
-      !call flush(6)
-      !print*,"turb_g(ngrid)%sflux_r", turb_g(ngrid)%sflux_r
-      !call flush(6)
-      !  call mk_4_buff(turb_g(ngrid)%sflux_t, temp_sflux_t, &
-      !        mzg, nnxp(ifm), nnyp(ifm), npat, mzg, n2, n3, npat, ia, iz, ja, jz)
-
-      ! call mk_4_buff(turb_g(ngrid)%sflux_r, temp_sflux_r, &
-      !       mzg, nnxp(ifm), nnyp(ifm), npat, mzg, n2, n3, npat, ia, iz, ja, jz)
-
-      !   call mk_2_buff(turb_g(ngrid)%sflux_t, temp_sflux_t, &
-      !                          nnxp(ifm), nnyp(ifm), &
-      !                          nodemxp(mynum,ifm), nodemyp(mynum,ifm), &
-      !                          nxbeg(mynum,ifm),nxend(mynum,ifm),nybeg(mynum,ifm),nyend(mynum,ifm))
-
-      !  call mk_2_buff(turb_g(ngrid)%sflux_r, temp_sflux_r, &
-      !                         nnxp(ifm), nnyp(ifm), &
-      !                         nodemxp(mynum,ifm), nodemyp(mynum,ifm), &
-      !                        nxbeg(mynum,ifm),nxend(mynum,ifm),nybeg(mynum,ifm),nyend(mynum,ifm))
-
-      ! call StoreOwnChunk_2D(ngrid,temp_sflux_t, turb_g(ngrid)%sflux_t, nnxp(1), nnyp(1), 'SFLUX_T')
-      ! call StoreOwnChunk_2D(ngrid,temp_sflux_r, turb_g(ngrid)%sflux_r, nnxp(1), nnyp(1), 'SFLUX_R')
-      !print *, "DEPOIS DA introducao do PARALELISMO - vou sair do sfire"
-      ! print*,"turb_g(ngrid)%sflux_t"
-      !  print*,turb_g(ngrid)%sflux_t
-      ! print*,"turb_g(ngrid)%sflux_r"
-      !  print*,turb_g(ngrid)%sflux_r
+      !call swap_sfire_brams(temp_sflux_t, temp_sflux_r, &
+      !                      turb_g(ngrid)%sflux_t, turb_g(ngrid)%sflux_r)
 
       !  print*,"VOU SAIR DO SFIRE"
       return
 
    end subroutine sfclyr_sfire
+   
+   
 
    subroutine swap_brams_sfire(sfire, & !temp_aconpr,&
+                               temp_accpr, temp_accpp, temp_accps, temp_accpa, &
+                               temp_accpg, temp_accph, temp_t2mj,temp_topt, &
+                               temp_rv2mj, temp_pp, temp_glat, temp_glon, &
+                               temp_veg_rough, temp_h, temp_dn0, temp_up, &
+                               temp_vp, temp_press)
+
+      use module_domain_type
+      use mem_grid, only: nnzp, nnxp, nnyp, &
+                          polelat, polelon, npatch
+
+      implicit none
+
+      !real, INTENT(IN) ::temp_aconpr(nnxp(1),nnyp(1))
+      real, intent(IN) ::temp_accpr(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_accpp(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_accps(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_accpa(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_accpg(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_accph(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_t2mj(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_topt(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_rv2mj(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_pp(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_glat(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_glon(nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_veg_rough(nnxp(1), nnyp(1), npatch)
+      real, intent(IN) ::temp_h(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_dn0(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_up(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_vp(nnzp(1), nnxp(1), nnyp(1))
+      real, intent(IN) ::temp_press(nnxp(1), nnyp(1))
+      real :: x, y
+
+      type(domain), target :: sfire
+      integer :: k
+      real, dimension(nnzp(1), nnxp(1), nnyp(1)) :: temp
+
+      sfire%rainc(:, :) = 0.0
+      sfire%rainnc(:, :) = sfire%rainc(:, :) + temp_accpr(:, :) &
+                           + temp_accpp(:, :) + temp_accps(:, :) &
+                           + temp_accpa(:, :) + temp_accpg(:, :) &
+                           + temp_accph(:, :)
+
+      sfire%t2(:, :) = temp_t2mj(:, :)
+
+      sfire%ht(:, :) = temp_topt(:, :)
+      sfire%zsf(:, :) = 0.
+      sfire%dzdxf(:,:) = 0.
+      sfire%dzdyf(:,:) = 0.
+      sfire%nfuel_cat(:,:) = 14
+      sfire%q2(:, :) = temp_rv2mj(2, :, :)
+      sfire%mut(:, :) = temp_pp(1, :, :)
+      sfire%xlat(:, :) = temp_glat(:, :)
+      sfire%xlong(:, :) = temp_glon(:, :)
+      sfire%z0(:, :) = temp_veg_rough(:, :, 2)
+      sfire%psfc(:, :) = temp_press(:, :)
+
+      do k = 1, nnzp(1) - 1
+         temp(k, :, :) = temp_h(k + 1, :, :) - temp_h(k, :, :)
+      end do
+
+      call swap_kij_to_ikj(sfire%rho, temp_dn0)
+      call swap_kij_to_ikj(sfire%dz8w, temp)
+      call swap_kij_to_ikj(sfire%z_at_w, temp_h)
+
+      sfire%ph_2(:, :, :) = sfire%z_at_w(:, :, :)
+      sfire%phb(:, :, :) = sfire%z_at_w(:, :, :)
+
+      call swap_kij_to_ikj(sfire%u_2, temp_up)
+      call swap_kij_to_ikj(sfire%v_2, temp_vp)
+
+      return
+   end subroutine swap_brams_sfire
+
+subroutine swap_B_brams_sfire(sfire, & !temp_aconpr,&
                                temp_accpr, temp_accpp, temp_accps, temp_accpa, &
                                temp_accpg, temp_accph, temp_t2mj, temp_topt, &
                                temp_rv2mj, temp_pp, temp_glat, temp_glon, &
@@ -768,72 +633,36 @@ contains
       integer :: k
       real, dimension(nnzp(1), nnxp(1), nnyp(1)) :: temp
 
-      !print*,"entrei no swap_brams_sfire"
-      !print*,"rainc"
-      ! sfire%rainc = max(temp_aconpr(:,:),0.0)
       sfire%rainc(:, :) = 0.0
-      ! print*,"rainnc"
       sfire%rainnc(:, :) = sfire%rainc(:, :) + temp_accpr(:, :) &
                            + temp_accpp(:, :) + temp_accps(:, :) &
                            + temp_accpa(:, :) + temp_accpg(:, :) &
                            + temp_accph(:, :)
 
-      ! print*,"***"
-
-      ! TO DO: Rever metodo para preencher variavel
-
-      ! print*,"PASSOU RAINC E RAINNC"
-      ! print*,"vou para o t2"
       sfire%t2(:, :) = temp_t2mj(:, :)
-
-      !sfire%t2(:,:) =  jules_g(ngrid)%t2mj(:,:)
-      !print*,"vou para o ht"
       sfire%ht(:, :) = temp_topt(:, :)
-      !print*,"vou para o zsf"
-      sfire%zsf(:, :) = temp_topt(:, :)
-      !print*,"vou para o q2"
       sfire%q2(:, :) = temp_rv2mj(2, :, :)
-      !print*,"vou para o mut"
       sfire%mut(:, :) = temp_pp(1, :, :)
-      !print*,"vou para o xlat"
       sfire%xlat(:, :) = temp_glat(:, :)
-      !print*,"vou para o xlong"
       sfire%xlong(:, :) = temp_glon(:, :)
-      !print*,"vou para o fxlat"
-      sfire%fxlat(:, :) = temp_glat(:, :)
-      !print*,"vou para o fxlong"
-      sfire%fxlong(:, :) = temp_glon(:, :)
-      !print*,"vou para o z0"
       sfire%z0(:, :) = temp_veg_rough(:, :, 2)
       sfire%psfc(:, :) = temp_press(:, :)
-      !print*,"vou para a temp"
+
       do k = 1, nnzp(1) - 1
          temp(k, :, :) = temp_h(k + 1, :, :) - temp_h(k, :, :)
       end do
-      ! print*,"TEMP - DZ8W"
-      !print*,temp
-      ! Isso mudar quando tiver topografia em alta resoluo do modelo de fogo (sr_x, sr_y)
-      !sfire%dzdxf(:,:) = grid_g(ngrid)%glon(:,:)
-      !sfire%dzdyf(:,:) = grid_g(ngrid)%glat(:,:)
 
-      ! TO DO: Variaveis que precisam trocar indices
-      ! print*,"vou para o call rho"
       call swap_kij_to_ikj(sfire%rho, temp_dn0)
-      !print*,"vou para o call dz8w"
       call swap_kij_to_ikj(sfire%dz8w, temp)
-      !print*,"vou para o call z_at_w"
       call swap_kij_to_ikj(sfire%z_at_w, temp_h)
 
       sfire%ph_2(:, :, :) = sfire%z_at_w(:, :, :)
       sfire%phb(:, :, :) = sfire%z_at_w(:, :, :)
-      !print*,"vou para o call u_2"
       call swap_kij_to_ikj(sfire%u_2, temp_up)
-      !print*,"vou para o call v_2"
       call swap_kij_to_ikj(sfire%v_2, temp_vp)
 
-      !print*,"fiz tudo vou sair da sawp_fire"
       return
-   end subroutine swap_brams_sfire
+   end subroutine swap_B_brams_sfire
 
    subroutine swap_sfire_brams(temp_sflux_t, temp_sflux_r, &
                                said_sflux_t, said_sflux_r)
@@ -861,41 +690,9 @@ contains
 
       n1 = nnxp(1)
       n2 = nnyp(1)
-      !print *,'LFR-DBG: ',mynum,'em swap_sfire_brams'; call flush(6)
-      !print *,n1,n2,nodemxp(mynum, 1),nodemyp(mynum, 1),ia,iz,ja,jz
-      !print *,size(temp_sflux_t,1),size(temp_sflux_t,2)
-      !print *,size(said_sflux_t,1),size(said_sflux_t,2)
-      !print*,"n1,n2,ia, iz, ja, jz =", n1,n2,ia, iz, ja, jz, nodemxp(mynum,1), nodemyp(mynum,1)
-      !CALL parf_bcast(temp_sflux_t, n1, &
-      !         n2, master_num)
-      ! Distributing local information about sensible heat
-      !print *, 'LFR-DBG: ', mynum, 'Distributing local information about sensible heat'
-      !print *, 'LFR-DBG: n1,n2,......:', n1, n2, nodemxp(mynum, 1), nodemyp(mynum, 1), ia, iz, ja, jz
-      !print *, 'LFR-DBG: TEMP IN  (i):', size(temp_sflux_t, 1)
-      !print *, 'LFR-DBG: TEMP IN  (j):', size(temp_sflux_t, 2)
-      !print *, 'LFR-DBG: SAID OUT (i):', size(said_sflux_t, 1)
-      !print *, 'LFR-DBG: SAID OUT (j):', size(said_sflux_t, 2)
-      call flush (6)
-      !LFR call mk_2_buff(temp_sflux_t(:, :), said_sflux_t(:, :), &
-      !LFR               n1, n2, nodemxp(mynum, 1), nodemyp(mynum, 1), &
-      !LFR               ia, iz, ja, jz)
       said_sflux_t(:, :) = temp_sflux_t(:, :)
 
-      !print*,"ia, iz, ja, jz =",ia, iz, ja, jz
-      !print*,"dentro do swap - depois do mkbuff sflux_t"
-      call flush (6)
-      ! CALL parf_bcast(temp_sflux_r, n1, &
-      !         n2, master_num)
-      !print*,"dentro do swap - antes do mkbuff sflux_r"
-      call flush (6)
-      ! Distributing local information about latent heat
-      !LFR call mk_2_buff(temp_sflux_r(:, :), said_sflux_r(:, :), &
-      !LFR               n1, n2, nodemxp(mynum, 1), nodemyp(mynum, 1), &
-      !LFR               ia, iz, ja, jz)
       said_sflux_r(:, :) = temp_sflux_r(:, :)
-      !print*,"ia, iz, ja, jz =",ia, iz, ja, jz
-      !print*,"dentro do swap - depois do mkbuff sflux_r"
-      call flush (6)
       return
 
    end subroutine swap_sfire_brams
@@ -918,122 +715,7 @@ contains
 
    end subroutine swap_kij_to_ikj
 
-! ****************************************************************************
 
-   subroutine combinit_user(temp_veg_class, temp_glat, &
-                            temp_glon, nfuel_cat)
-
-      use mem_grid, only: &
-         jdim, & ! intent(in)
-         ngrid, & ! intent(in)
-         polelat, & ! intent(in)
-         polelon, & ! intent(in)
-         centlat, & ! intent(in)
-         centlon, & ! intent(in)
-         deltax, & ! intent(in)
-         deltay, & ! intent(in)
-         nstratx, & ! intent(in)
-         nstraty, & ! intent(in)
-         nxtnest, & ! intent(in)
-         nnxp, & ! intent(in)
-         nnyp, & ! intent(in)
-         ninest, & ! intent(inout)
-         njnest, & ! intent(inout)
-         deltaxn, & ! intent(out)
-         deltayn, & ! intent(out)
-         platn, & ! intent(out)
-         plonn, & ! intent(out)
-         !   xmn,          & ! intet(in)
-         !   ymn,            & !intente(in)
-         npatch
-      !    xtn,           & ! intent(in)
-      !     ytn             ! intent(in)
-
-      ! use rconstants, only: erad
-      use module_model_constants, only: DEGRAD
-
-      implicit none
-
-      integer, parameter:: escrever = 1 !FLAG para escrever no ficheiro para ser lido no grads (1 => sim)
-
-      real, intent(OUT) :: nfuel_cat(nnxp(1), nnyp(1))
-
-      integer :: b, i, j
-      !integer, parameter :: nlinhas = 24286 !YDEF
-      !integer,parameter :: ncolun = 16439 !XDEF
-      !real,parameter :: distan = 0.00022511079999887
-      !real,parameter :: lat0 = 36.855458166893
-      !real,parameter :: lon0 = -9.7545209749261
-      character(len=255) :: filename
-      logical :: file_exists
-      logical :: value_unit
-      integer :: iosize
-      character(len=80)::fname
-      real, intent(IN) ::temp_veg_class(nnxp(1), nnyp(1), npatch)
-      real, dimension(nnxp(1), nnyp(1)) :: temp_glat, temp_glon
-      character(len=80) :: dummy_str
-
-      !print *, "sfire -estou na rotina dos combustiveis"
-
-      !MFF- Build filename
-      write (dummy_str, "(F8.1)") deltay
-      filename = "nfuel_cat_"//adjustl(dummy_str)
-
-      write (dummy_str, "(F8.1)") deltax
-      filename = trim(filename)//"_"//adjustl(dummy_str)
-
-      write (dummy_str, "(a,i0,a,i0,a4)") "_", nnyp(1), "_", nnxp(1), ".bin"
-      filename = trim(filename)//trim(adjustl(dummy_str))
-
-      print *,'LFR-DBG: filename nfuel: ',filename
-      inquire (file=filename, exist=file_exists)
-      if (file_exists) then
-         print *, "Lendo o ficheiro ", filename
-         b = 22
-         inquire (b, opened=value_unit)
-         print *, value_unit
-
-         open (b, file=trim(adjustl(filename)), status='old', &
-               access='stream', form='unformatted', action='read')
-
-         read (b) ((nfuel_cat(i, j), i=1, nnxp(1)), j=1, nnyp(1))
-
-         close (b)
-         
-         !LFR-DBG - beg
-         !do i=1,nnxp(1)
-         !   do j=1,nnyp(1)
-         !      write (88,*),i,j,nfuel_cat(i, j)
-         !   enddo
-         !enddo
-         !LBR-DBG - end
-
-      else
-         print *, "Nao existe o ficheiro ", filename
-         print *, "O programa escreverá glat_glon.bin e sairá"
-
-         b = 22
-         inquire (b, opened=value_unit)
-         print *, value_unit
-         write (fname, 3) 'glat_glon.bin'
-3        format(a18)
-         open (b, file=trim(adjustl(fname)), form='unformatted', action='write', &
-               status='replace', access='stream')
-
-         write (b) nnyp(1), nnxp(1), deltay, deltax
-         write (b) (((temp_glat(i, j)), i=1, nnxp(1)), j=1, nnyp(1))
-         write (b) (((temp_glon(i, j)), i=1, nnxp(1)), j=1, nnyp(1))
-
-         close (b)
-         !         call MPI_Abort(MPI_COMM_WORLD, 0, ierr)
-         stop - 1
-
-      end if
-
-      print *, "sfire -vou sair da rotina dos combustiveis"
-      return
-
-   end subroutine combinit_user
 
    subroutine get_ijk_from_subgrid(config_flags)
       use mem_grid, only: nnzp, nnxp, nnyp
@@ -1047,25 +729,6 @@ contains
       config_flags%kds = 2; config_flags%kde = nnzp(1)
       config_flags%ims = 1; config_flags%ime = nnxp(1); config_flags%jms = 1; config_flags%jme = nnyp(1); config_flags%kms = 1
       config_flags%kme = nnzp(1)
-      ! config_flags%ids=3   ;config_flags%ide=mxp-2 ;config_flags%jds=3   ;config_flags%jde=myp-2 ;config_flags%kds=1; config_flags%kde=mzp
-      !  config_flags%ims=1   ;config_flags%ime=mxp ;config_flags%jms=1   ;config_flags%jme=myp ;config_flags%kms=1; config_flags%kme=mzp
-
-      !config_flags%ips=ia+1;config_flags%ipe=iz-2;config_flags%jps=ja+1;config_flags%jpe=jz-2;config_flags%kps=1; config_flags%kpe=mzp
-      !config_flags%its=ia  ;config_flags%ite=iz  ;config_flags%jts=ja  ;config_flags%jte=jz  ;config_flags%kts=1; config_flags%kte=mzp-1
-
-      ! substitui pela de baixo:
-
-      config_flags%ips = config_flags%ids; config_flags%ipe = config_flags%ide; config_flags%jps = config_flags%jds; 
-      config_flags%jpe = config_flags%jde; config_flags%kps = 2; config_flags%kpe = nnzp(1)
-      !config_flags%ips=config_flags%ids;config_flags%ipe=config_flags%ide;config_flags%jps=config_flags%jds;
-      !config_flags%jpe=config_flags%jde;config_flags%kps=1;config_flags%kpe=mzp
-
-      !print *, mynum, "PROG::(ids,ide,jds,jde,kds,kde)=", config_flags%ids, config_flags%ide, &
-      !   config_flags%jds, config_flags%jde, config_flags%kds, config_flags%kde
-      !print *, mynum, "PROG::(ims,ime,jms,jme,kms,kme)=", config_flags%ims, config_flags%ime, &
-      !   config_flags%jms, config_flags%jme, config_flags%kms, config_flags%kme
-      !print *, mynum, "PROG::(ips,ipe,jps,jpe,kps,kpe)=", config_flags%ips, config_flags%ipe, &
-      !   config_flags%jps, config_flags%jpe, config_flags%kps, config_flags%kpe
 
       config_flags%ifds = config_flags%ids
       config_flags%ifde = config_flags%ide*config_flags%sr_x
@@ -1080,16 +743,8 @@ contains
       config_flags%jfme = config_flags%jme*config_flags%sr_y
       config_flags%kfms = config_flags%kms
       config_flags%kfme = config_flags%kme
-
-      config_flags%ifps = (config_flags%ips - 3)*config_flags%sr_x + 3
-      !config_flags%ifps = (config_flags%ips-1)*config_flags%sr_x+1
-      config_flags%ifpe = config_flags%ipe*config_flags%sr_x
-      config_flags%jfps = (config_flags%jps - 3)*config_flags%sr_y + 3
-      !config_flags%jfps = (config_flags%jps-1)*config_flags%sr_y+1
-      config_flags%jfpe = config_flags%jpe*config_flags%sr_y
-      config_flags%kfps = config_flags%kps
-      config_flags%kfpe = config_flags%kpe
-
+      
+         
       return
    end subroutine get_ijk_from_subgrid
 

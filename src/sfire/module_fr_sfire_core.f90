@@ -16,14 +16,12 @@ contains
    subroutine init_no_fire( &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
       fdx, fdy, time_start, dt, &
       fuel_frac, fire_area, lfn, tign_in, &
       tign)
       implicit none
 
       integer, intent(in):: ifds, ifde, jfds, jfde
-      integer, intent(in):: ifts, ifte, jfts, jfte
       integer, intent(in):: ifms, ifme, jfms, jfme
       real, intent(in) :: fdx, fdy, time_start, dt
       real, intent(out), dimension(ifms:ifme, jfms:jfme) :: &
@@ -42,7 +40,7 @@ contains
       time_init = time_start + 2*dt
       lfn_init = 2*max((ifde - ifds + 1)*fdx, (jfde - jfds + 1)*fdy)
 
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'init_no_fire start: tign')
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'init_no_fire start: tign')
 
       if (fire_perimeter_time > 0. .and. fire_tign_in_time > 0.) then
          call crash('fire_perimeter_time > 0 and fire_tign_in_time > 0')
@@ -55,8 +53,8 @@ contains
 !$OMP CRITICAL(SFIRE_CORE_CRIT)
          call message(msg, level=1)
 !$OMP END CRITICAL(SFIRE_CORE_CRIT)
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                fuel_frac(i, j) = 1.
                fire_area(i, j) = 0.
                lfn(i, j) = tign(i, j) - time_now
@@ -64,19 +62,19 @@ contains
          end do
       elseif (fire_tign_in_time > 0.) then
          call message('init_no_fire: using ignition from given max fire arrival time', level=1)
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                tign_in(i, j) = tign(i, j)
                fuel_frac(i, j) = 1.
                fire_area(i, j) = 0.
                lfn(i, j) = tign_in(i, j) - time_now
             end do
          end do
-         call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign_in, 'init_no_fire: tign_in')
+         call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign_in, 'init_no_fire: tign_in')
       else
          call message('init_no_fire: setting state to no fire', level=1)
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                fuel_frac(i, j) = 1.
                fire_area(i, j) = 0.
                tign(i, j) = time_init
@@ -85,12 +83,12 @@ contains
          end do
       end if
       !print *, 'LFR-DBG: core', 'tign(3,3):', tign(3, 3)
-      call check_lfn_tign('init_no_fire', time_now, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'init_no_fire: tign')
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'init_no_fire: lfn')
+      call check_lfn_tign('init_no_fire', time_now, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'init_no_fire: tign')
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'init_no_fire: lfn')
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             if (.not. lfn(i, j) > 0.) then
                write (msg, *) 'i,j=', i, j, ' tign=', tign(i, j), ' <= time_now =', time_now
                call message(msg, level=0)
@@ -104,14 +102,12 @@ contains
    subroutine ignite_from_tign_in( &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
       start_ts, end_ts, &
       tign_in, &
       lfn, tign, ignited)
       implicit none
 
       integer, intent(in):: ifds, ifde, jfds, jfde
-      integer, intent(in):: ifts, ifte, jfts, jfte
       integer, intent(in):: ifms, ifme, jfms, jfme
       real, intent(in):: start_ts, end_ts
       real, intent(in), dimension(ifms:ifme, jfms:jfme) :: tign_in
@@ -125,10 +121,10 @@ contains
       ignited = 0
       if (.not. start_ts < fire_tign_in_time) return
 
-      call check_lfn_tign('ignite_from_tign_in start', end_ts, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
-      !print *, 'LFR-DBG: tign_in', jfts, jfte, ifts, ifte, size(tign_in, 1), size(tign_in, 2), end_ts; call flush (6)
-      do j = jfts, jfte
-         do i = ifts, ifte
+      call check_lfn_tign('ignite_from_tign_in start', end_ts, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
+      !print *, 'LFR-DBG: tign_in', jfds, jfde, ifds, ifde, size(tign_in, 1), size(tign_in, 2), end_ts; call flush (6)
+      do j = jfds, jfde
+         do i = ifds, ifde
             !print *, 'LFR-DBG: Loop tign_in:', i, j
             !print *,'LFR-DBG: Loop tign_in:',isnan(tign_in(i,j)); call flush(6)
             if (.not. tign_in(i, j) > end_ts) then
@@ -141,15 +137,14 @@ contains
          end do
       end do
 
-      call check_lfn_tign('ignite_from_tign_in end', end_ts, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'init_no_fire: tign')
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'init_no_fire: lfn')
+      call check_lfn_tign('ignite_from_tign_in end', end_ts, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'init_no_fire: tign')
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'init_no_fire: lfn')
 
    end subroutine ignite_from_tign_in
 
    subroutine ignite_fire(ifds, ifde, jfds, jfde, &
                           ifms, ifme, jfms, jfme, &
-                          ifts, ifte, jfts, jfte, &
                           ignition_line, &
                           start_ts, end_ts, &
                           coord_xf, coord_yf, &
@@ -158,7 +153,6 @@ contains
       implicit none
 
       integer, intent(in):: ifds, ifde, jfds, jfde
-      integer, intent(in):: ifts, ifte, jfts, jfte
       integer, intent(in):: ifms, ifme, jfms, jfme
       type(line_type), intent(in):: ignition_line
       real, intent(in):: start_ts, end_ts
@@ -185,7 +179,7 @@ contains
       integer:: msglevel = 4, smsg = 2
       real:: lfn_min
 
-      call check_lfn_tign('ignite_fire start', end_ts, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+      call check_lfn_tign('ignite_fire start', end_ts, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
 
       start_x = ignition_line%start_x
       start_y = ignition_line%start_y
@@ -201,12 +195,17 @@ contains
       et = min(end_ts, end_time)
 
       ignited = 0
-      print *, 'LFR-DBG: start_time,end_time:',start_time,end_time,start_time < end_time
-      print *, 'LFR-DBG: start_ts,et,tos,end_ts,st:',start_ts,et,tos,end_ts,st
+    !  print *, 'IM-DBG: ignition_line%start_x,ignition_line%start_y:',ignition_line%start_x, ignition_line%start_y
+    !  print *, 'IM-DBG: ignition_line%end_x,ignition_line%end_y:',ignition_line%end_x, ignition_line%end_y
+    !  print *, 'IM-DBG: start_x,start_y,end_x,end_y:',start_x,start_y,end_x,end_y
+    !  print *, 'IM-DBG: ignition_line%start_time,ignition_line%end_time:',ignition_line%start_time,ignition_line%end_time
+    !  print *, 'LFR-DBG: start_time,end_time:',start_time,end_time,start_time < end_time
+    !  print *, 'IM-DBG: start_ts,end_ts,st,et,tos:',start_ts,end_ts,st,et,tos
+    !  print *, 'IM-DBG: end_time,end_ts:',end_time,end_ts
       if (start_ts > et + tos .or. end_ts < st) return
 
       if (start_time < end_time) then
-         print *, 'LFR-DBG: I am inside!'
+     !    print *, 'LFR-DBG: I am inside!'
          rels = 0.
          sx = start_x
          sy = start_y
@@ -226,32 +225,32 @@ contains
       cx2 = unit_xf*unit_xf
       cy2 = unit_yf*unit_yf
 
-      axmin = coord_xf(ifts, jfts)
-      aymin = coord_yf(ifts, jfts)
-      axmax = coord_xf(ifte, jfte)
-      aymax = coord_yf(ifte, jfte)
+      axmin = coord_xf(ifds, jfds)
+      aymin = coord_yf(ifds, jfds)
+      axmax = coord_xf(ifds, jfds)
+      aymax = coord_yf(ifds, jfds)
       if (fire_print_msg .ge. smsg) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
          write (msg, '(a,2f11.6,a,2f11.6)') 'IGN from ', sx, sy, ' to ', ex, ey
          call message(msg, level=smsg)
          write (msg, '(a,2f10.2,a,2f10.2,a)') 'IGN timestep [', start_ts, end_ts, '] in [', start_time, end_time, ']'
          call message(msg, level=smsg)
          write (msg, '(a,2g13.6,a,2g13.6)') 'IGN tile coord from  ', axmin, aymin, ' to ', axmax, aymax
          call message(msg, level=smsg)
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
       end if
       ignited = 0
       dmax = 0
       dmin = huge(dmax)
 11    format('IGN ', 6(a, g17.7, 1x))
-12    format('IGN ', 4(a, 2g13.7, 1x))
+12    format('IGN ', 4(a, 2g14.7, 1x))
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             call check_lfn_tign_ij(i, j, 'ignite_fire start', end_ts, lfn(i, j), tign(i, j))
             ax = coord_xf(i, j)
             ay = coord_yf(i, j)
-
+           ! print*,'IM-DGB:coord_xf,coord_yf: ',ax,ay
             call nearest(d, time_ign, ax, ay, sx, sy, st, ex, ey, et, cx2, cy2)
 
             dmax = max(d, dmax)
@@ -260,39 +259,43 @@ contains
             if (radius < ros*(end_ts - time_ign)) then
                lfn_new = d - radius
                tign_new = time_ign + d/ros
+       !        print*,'IM-DGB:JJJKKKLLL_1'
             else
                lfn_new = d - ros*(end_ts - time_ign)
                tign_new = lfn_new/ros + end_ts
+        !       print*,'IM-DGB:PPPOOOLLLMMM_2'
             end if
-
+        !    print*,'IM-DGB:lfn_new,tign_new:',lfn_new,tign_new,ros,d,end_ts,time_ign
+        !    print*,'IM-DGB:radius,end_ts,time_ign:',radius,end_ts,time_ign
             if (fire_print_msg .ge. msglevel) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
                write (msg, *) 'IGN1 i,j=', i, j, ' lfn(i,j)=', lfn(i, j), ' tign(i,j)=', tign(i, j)
                call message(msg, level=0)
                write (msg, *) 'IGN2 i,j=', i, j, ' lfn_new= ', lfn_new, ' time_ign= ', time_ign, ' d=', d
                call message(msg, level=msglevel)
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
             end if
             if (.not. lfn_new > 0.) then
                ignited = ignited + 1
+         !      print*,'IM-DGB:ignited: ',ignited
             end if
             if (.not. lfn(i, j) < 0. .and. lfn_new < 0.) then
                tign(i, j) = tign_new
                if (fire_print_msg .ge. msglevel) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
                   write (msg, '(a,2i6,a,2g13.6,a,f10.2,a,2f10.2,a)') 'IGN ignited cell ', i, j, ' at', ax, ay, &
                      ' time', tign(i, j), ' in [', start_ts, end_ts, ']'
                   call message(msg, level=0)
              write (msg, '(a,g10.3,a,f10.2,a,2f10.2,a)') 'IGN distance', d, ' from ignition line at', time_ign, ' in [', st, et, ']'
                   call message(msg, level=msglevel)
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
                end if
                if (tign(i, j) < start_ts .or. tign(i, j) > end_ts) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
                   write (msg, '(a,2i6,a,f11.6,a,2f11.6,a)') 'WARNING ', i, j, &
                      ' fixing ignition time ', tign(i, j), ' outside of the time step [', start_ts, end_ts, ']'
                   call message(msg)
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
                   tign(i, j) = min(max(tign(i, j), start_ts), end_ts)
                end if
             end if
@@ -307,11 +310,11 @@ contains
          end do
       end do
 
-      call check_lfn_tign("ignite_fire end:", end_ts, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+      call check_lfn_tign("ignite_fire end:", end_ts, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
       if (fire_print_msg .ge. smsg) then
          lfn_min = huge(lfn_min)
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                lfn_min = min(lfn_min, lfn(i, j))
             end do
          end do
@@ -325,13 +328,13 @@ contains
       end if
    end subroutine ignite_fire
 
-   subroutine check_lfn_tign(s, time_now, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+   subroutine check_lfn_tign(s, time_now, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
 
       implicit none
 
       character(len=*), intent(in)::s
       real, intent(in)::time_now
-      integer, intent(in):: ifts, ifte, jfts, jfte
+      integer, intent(in):: ifds, ifde, jfds, jfde
       integer, intent(in):: ifms, ifme, jfms, jfme
       real, intent(in), dimension(ifms:ifme, jfms:jfme) :: &
          lfn, tign
@@ -339,15 +342,11 @@ contains
       integer:: i, j
       character(len=128)::msg
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             call check_lfn_tign_ij(i, j, s, time_now, lfn(i, j), tign(i, j))
          end do
       end do
-
-! !$OMP CRITICAL(SFIRE_CORE_CRIT)
-
-! !$OMP END CRITICAL(SFIRE_CORE_CRIT)
 
    end subroutine check_lfn_tign
 
@@ -363,7 +362,7 @@ contains
       character(len=128):: msg, msg1
 
       if (.not. lfnij < 0. .and. tignij < time_now) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
 1        format(a, i5, ',', i5, a, g13.6, a, g15.8, a, g15.8)
          msg1 = trim(s)//':check_lfn_tign_ij: inconsistent state'
          if (lfnij > 0.) then
@@ -375,7 +374,7 @@ contains
             call message(msg, level=0)
             call warning(msg1, level=0)
          end if
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
       end if
 
    end subroutine check_lfn_tign_ij
@@ -392,7 +391,7 @@ contains
       integer::msglevel = 4
 
 11    format('IGN ', 6(a, g17.7, 1x))
-12    format('IGN ', 4(a, 2g13.7, 1x))
+12    format('IGN ', 4(a, 2g14.7, 1x))
 
       mx = (sx + ex)*0.5
       my = (sy + ey)*0.5
@@ -419,7 +418,7 @@ contains
       d = sqrt((ax - cx)*(ax - cx)*cx2 + (ay - cy)*(ay - cy)*cy2)
       t = (et + st)*0.5 + mcrel*(et - st)*0.5
       if (fire_print_msg .ge. msglevel) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
          write (msg, 12) 'find nearest to [', ax, ay, '] from [', sx, sy, '] [', ex, ey, ']'
          call message(msg, level=msglevel)
          write (msg, 12) 'end times', st, et, ' scale squared', cx2, cy2
@@ -432,19 +431,21 @@ contains
          call message(msg, level=msglevel)
          write (msg, 11) 'am_es=', am_es, 'cos2=', cos2, 'dmc2=', dmc2
          call message(msg)
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
       end if
    end subroutine nearest
+
 
    subroutine fuel_left( &
       ifds, ifde, jfds, jfde, &
       ims, ime, jms, jme, &
-      its, ite, jts, jte, &
+      ids, ide, jds, jde, &
       ifs, ife, jfs, jfe, &
       lfn, tign, fuel_time, time_now, fuel_frac, fire_area)
       implicit none
+      
 
-      integer, intent(in) ::ifds, ifde, jfds, jfde, its, ite, jts, jte, ims, ime &
+      integer, intent(in) ::ifds, ifde, jfds, jfde, ids, ide, jds, jde, ims, ime &
                              , jms, jme, ifs, ife, jfs, jfe
       real, intent(in), dimension(ims:ime, jms:jme)::lfn, tign, fuel_time
       real, intent(in):: time_now
@@ -460,9 +461,10 @@ contains
       character(len=128)::msg
       integer::m, omp_get_thread_num
 
-      call check_mesh_2dim(its - 1, ite + 1, jts - 1, jte + 1, ims, ime, jms, jme)
-      call check_mesh_2dim(its, ite, jts, jte, ifs, ife, jfs, jfe)
-      call check_lfn_tign('fuel_left start', time_now, its, ite, jts, jte, ims, ime, jms, jme, lfn, tign)
+
+      call check_mesh_2dim(ids - 1, ide + 1, jds - 1, jde + 1, ims, ime, jms, jme)
+      call check_mesh_2dim(ids, ide, jds, jde, ifs, ife, jfs, jfe)
+      call check_lfn_tign('fuel_left start', time_now, ids, ide, jds, jde, ims, ime, jms, jme, lfn, tign)
 
       ir = fuel_left_irl
       jr = fuel_left_jrl
@@ -474,19 +476,19 @@ contains
       rx = 1./ir
       ry = 1./jr
 
-      its1 = max(its, ifds + 1)
-      ite1 = min(ite, ifde - 1)
-      jts1 = max(jts, jfds + 1)
-      jte1 = min(jte, jfde - 1)
+      its1 = max(ids, ifds + 1)
+      ite1 = min(ide, ifde - 1)
+      jts1 = max(jds, jfds + 1)
+      jte1 = min(jde, jfde - 1)
 
-      do j = jts, jte
-         do i = its, ite
+      do j = jds, jde
+         do i = ids, ide
             fuel_frac(i, j) = 1.
             fire_area(i, j) = 0.
          end do
       end do
 
-      call check_lfn_tign('fuel_left', time_now, its, ite, jts, jte, ims, ime, jms, jme, lfn, tign)
+      call check_lfn_tign('fuel_left', time_now, ids, ide, jds, jde, ims, ime, jms, jme, lfn, tign)
 
       do icl = its1, ite1
          do jcl = jts1, jte1
@@ -515,10 +517,10 @@ contains
 
                   if (fire_area_ff .lt. -1e-6 .or. &
                       (fire_area_ff .eq. 0. .and. fuel_left_ff .lt. 1.-1e-6)) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
                      write (msg, '(a,2i6,2(a,f11.8))') 'fuel_left: at node', i, j, &
                         ' of refined mesh fuel burnt', 1 - fuel_left_ff, ' fire area', fire_area_ff
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
                      call crash(msg)
                   end if
 
@@ -533,13 +535,6 @@ contains
          end do
       end do
 
-!!$OMP CRITICAL(SFIRE_CORE_CRIT)
-
-!!$OMP END CRITICAL(SFIRE_CORE_CRIT)
-
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
-
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
 
       return
 
@@ -735,11 +730,11 @@ contains
       if (area > 0) out = area*exp(ta/fuel_time_cell) + (1.-area)
 
       if (out > 1.) then
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
          write (msg, *) 'out=', out, '>1 area=', area, ' ta=', ta
          call message(msg)
          write (msg, *) 'tign=', tign00, tign01, tign10, tign11, ' time_now=', time_now
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
          call message(msg)
 
          call crash('fuel_left_cell_1: fuel fraction > 1')
@@ -1149,8 +1144,6 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
                       ipart, &
                       ids, ide, jds, jde, &
                       ims, ime, jms, jme, &
-                      ips, ipe, jps, jpe, &
-                      its, ite, jts, jte, &
                       ts, dt, dx, dy, &
                       tbound, &
                       lfn_in, lfn_out, tign, ros, &
@@ -1158,7 +1151,7 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
                       ) !config_flags e ifun foi introd por ISILDA CM
       implicit none
 
-      integer, intent(in)::id, ipart, ims, ime, jms, jme, ids, ide, jds, jde, its, ite, jts, jte, ips, ipe, jps, jpe
+      integer, intent(in)::id, ipart, ims, ime, jms, jme, ids, ide, jds, jde
       real, dimension(ims:ime, jms:jme), intent(inout)::lfn_in, tign
       real, dimension(ims:ime, jms:jme), intent(out)::lfn_out, ros
       real, intent(in)::dx, dy, ts, dt
@@ -1170,7 +1163,7 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
       type(grid_config_rec_type), intent(IN)  :: config_flags
 !#####
 
-      real, dimension(its - 1:ite + 1, jts - 1:jte + 1):: tend, lfn1
+      real, dimension((ids - 1):(ide + 1), (jds - 1):(jde + 1)):: tend, lfn1
 
       real::grad2, rr, tbound2, a, a1
 
@@ -1192,27 +1185,27 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
       integer, intent(in)::ifun !introduzido por ISILDA CM
       !print *, "estou no module_fr_sfire_core dentro da prop_ls"
       !call flush (6)
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
-      write (msg, '(a,i6,a,i2,4(a,i5))') 'prop_ls:', id, ' part', ipart, ' tile', its, ':', ite, ',', jts, ':', jte
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
+      write (msg, '(a,i6,a,i2,4(a,i5))') 'prop_ls:', id, ' part', ipart, ' tile', ids, ':', ide, ',', jds, ':', jde
+
       call message(msg)
 
       if (ipart == 1) then
 
-         call check_lfn_tign('prop_ls start', ts, its, ite, jts, jte, ims, ime, jms, jme, lfn_in, tign)
+         call check_lfn_tign('prop_ls start', ts, ids, ide, jds, jde, ims, ime, jms, jme, lfn_in, tign)
 
          a = fire_back_weight
          a1 = 1.-a
 
-         ihs2 = max(its - 2, ids)
-         ihe2 = min(ite + 2, ide)
-         jhs2 = max(jts - 2, jds)
-         jhe2 = min(jte + 2, jde)
+         ihs2 = ids
+         ihe2 = ide
+         jhs2 = jds
+         jhe2 = jde
 
-         ihs = max(its - 1, ids)
-         ihe = min(ite + 1, ide)
-         jhs = max(jts - 1, jds)
-         jhe = min(jte + 1, jde)
+         ihs = ids
+         ihe = ide
+         jhs = jds
+         jhe = jde
 
          call write_array_m(ihs, ihe, jhs, jhe, ims, ime, jms, jme, lfn_in, 'lfn_in', id)
 
@@ -1223,12 +1216,9 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          if (id1 .ne. 0) id1 = id1 + 1000
          call tend_ls(ifun, id1, &
                       ims, ime, jms, jme, &
-                      its - 1, ite + 1, jts - 1, jte + 1, &
+                      ids - 1, ide + 1, jds - 1, jde + 1, &
                       ids, ide, jds, jde, &
-                      ips, ipe, jps, jpe, &
-                      ihs, ihe, jhs, jhe, &
                       ims, ime, jms, jme, &
-                      its, ite, jts, jte, &
                       ts, dt, dx, dy, &
                       lfn_in, &
                       tbound, &
@@ -1242,7 +1232,7 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          !print*,"MEEEEE lfn_in",lfn_in
          !call flush(6)
          !call flush(6)
-         call write_array_m(ihs, ihe, jhs, jhe, its - 1, ite + 1, jts - 1, jte + 1, tend, 'tend1', id)
+         call write_array_m(ihs, ihe, jhs, jhe, ids - 1, ide + 1, jds - 1, jde + 1, tend, 'tend1', id)
 
          do j = jhs, jhe
             do i = ihs, ihe
@@ -1254,19 +1244,16 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
             end do
          end do
 
-         !call print_2d_stats(ihs, ihe, jhs, jhe, its - 1, ite + 1, jts - 1, jte + 1, lfn1, 'prop_ls: lfn1')
+         !call print_2d_stats(ihs, ihe, jhs, jhe, ids - 1, ide + 1, jds - 1, jde + 1, lfn1, 'prop_ls: lfn1')
 
          !  print*,"estou no core na prop_ls, vou entrar outr vez na tend_ls agora a 2"
          !  call flush(6)
          if (id1 .ne. 0) id1 = id1 + 1000
          call tend_ls(ifun, id1, &
-                      its - 1, ite + 1, jts - 1, jte + 1, &
-                      its - 1, ite + 1, jts - 1, jte + 1, &
+                      ids - 1, ide + 1, jds - 1, jde + 1, &
+                      ids - 1, ide + 1, jds - 1, jde + 1, &
                       ids, ide, jds, jde, &
-                      ips, ipe, jps, jpe, &
-                      its, ite, jts, jte, &
                       ims, ime, jms, jme, &
-                      its, ite, jts, jte, &
                       ts + dt, dt, dx, dy, &
                       lfn1, &
                       tbound2, &
@@ -1274,10 +1261,10 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
                       fp, config_flags &
                       ) !config_flags e ifun INTROD ISILDA CUNHA MENEZES
          ! print*,"estou no core na prop_ls, fora da tend_ls_2, vou para write_array_m"
-         call write_array_m(its, ite, jts, jte, its - 1, ite + 1, jts - 1, jte + 1, tend, 'tend2', id)
+         call write_array_m(ids, ide, jds, jde, ids - 1, ide + 1, jds - 1, jde + 1, tend, 'tend2', id)
          ! print*,"estou no core, vou para print_2d_stats"
-         !LFR call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, ros, 'prop_ls: ros')
-         !LFR call print_2d_stats(its, ite, jts, jte, its - 1, ite + 1, jts - 1, jte + 1, tend, 'prop_ls: tend2')
+         !LFR call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, ros, 'prop_ls: ros')
+         !LFR call print_2d_stats(ids, ide, jds, jde, ids - 1, ide + 1, jds - 1, jde + 1, tend, 'prop_ls: tend2')
          ! print*,"estou no core na prop_ls, vou gerar o tbound"
          tbound = min(tbound, tbound2)
 
@@ -1296,8 +1283,8 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
 
          !  print*,"estou no core na prop_ls, vou calcular lfn_out"
          !  call flush(6)
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                ! print*,"membros do lfn_out1",j,i,a1,a, lfn1(i,j), lfn_in(i,j),dt,tend(i,j),a1*lfn1(i,j), a*lfn_in(i,j), dt*tend(i,j)
                ! call flush(6)
                !  print*,"m1",  lfn1(i,j); call flush(6)
@@ -1320,23 +1307,21 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          call continue_at_boundary(1, 1, zero, &
                                    ims, ime, jms, jme, &
                                    ids, ide, jds, jde, &
-                                   ips, ipe, jps, jpe, &
-                                   its, ite, jts, jte, &
                                    itso, iteo, jtso, jteo, &
                                    lfn_out)
 
          ! print*,"estou no core na prop_ls, vou calcular lfn1"
          ! call flush(6)
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                lfn1(i, j) = lfn_out(i, j)
             end do
          end do
 
          ! print*,"estou no core na prop_ls, vou calcular t0 t1"
          ! call flush(6)
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                t0 = min(lfn_in(i + 1, j), lfn_in(i - 1, j), lfn_in(i, j + 1), lfn_in(i, j - 1))
                t1 = min(lfn1(i + 1, j), lfn1(i - 1, j), lfn1(i, j + 1), lfn1(i, j - 1))
                if (.not. t0 > lfn_in(i, j) .and. t1 > lfn_out(i, j)) then
@@ -1358,8 +1343,8 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          ! call flush(6)
          time_now = ts + dt
          time_future = ts + 2*dt
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                call check_lfn_tign_ij(i, j, 'prop_ls before', ts, lfn_in(i, j), tign(i, j))
                if (lfn_out(i, j) < 0.) then
                   if (.not. lfn_in(i, j) < 0) then
@@ -1383,10 +1368,10 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          sum_aerr = 0.
          min_aerr = rmax
          max_aerr = rmin
-         its1 = its + 1
-         jts1 = jts + 1
-         ite1 = ite - 1
-         jte1 = jte - 1
+         its1 = ids + 1
+         jts1 = jds + 1
+         ite1 = ide - 1
+         jte1 = jde - 1
 
          ! print*,"estou no core na prop_ls, vou calcular grads asleed rr sum etc"
          ! call flush(6)
@@ -1430,8 +1415,8 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
 
             do kk = 1, boundary_guard
                i = ids + k*kk
-               if (i .ge. its .and. i .le. ite) then
-                  do j = jts, jte
+               if (i .ge. ids .and. i .le. ide) then
+                  do j = jds, jde
                      if (lfn_out(i, j) <= 0.) goto 9
                   end do
                end if
@@ -1439,8 +1424,8 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
 
             do kk = 1, boundary_guard
                j = jds + k*kk
-               if (j .ge. jts .and. j .le. jte) then
-                  do i = its, ite
+               if (j .ge. jds .and. j .le. jde) then
+                  do i = ids, ide
                      if (lfn_out(i, j) <= 0.) goto 9
                   end do
                end if
@@ -1448,18 +1433,18 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          end do
          goto 10
 9        continue
-!$OMP CRITICAL(SFIRE_CORE_CRIT)
+
          write (msg, '(a,i2,a,2i8)') 'prop_ls: fire', boundary_guard, &
             ' cells from domain boundary at node ', i, j
-!$OMP END CRITICAL(SFIRE_CORE_CRIT)
+
          call message(msg)
          call crash('prop_ls: increase the fire region')
 10       continue
 
-         call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, lfn_out, 'prop_ls: lfn out')
-         call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, tign, 'prop_ls: tign out')
+         call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, lfn_out, 'prop_ls: lfn out')
+         call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, tign, 'prop_ls: tign out')
 
-         call check_lfn_tign('prop_ls end', ts + dt, its, ite, jts, jte, ims, ime, jms, jme, lfn_out, tign)
+         call check_lfn_tign('prop_ls end', ts + dt, ids, ide, jds, jde, ims, ime, jms, jme, lfn_out, tign)
 
       else
          call crash('prop_ls: ipart must be 1 or 2')
@@ -1613,10 +1598,7 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
                       lims, lime, ljms, ljme, &
                       tims, time, tjms, tjme, &
                       ids, ide, jds, jde, &
-                      ips, ipe, jps, jpe, &
-                      ints, inte, jnts, jnte, &
                       ims, ime, jms, jme, &
-                      its, ite, jts, jte, &
                       t, dt, dx, dy, &
                       lfn, &
                       tbound, &
@@ -1627,8 +1609,8 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
       implicit none
 
       integer, intent(in)::id, lims, lime, ljms, ljme, tims, time, tjms, tjme
-      integer, intent(in)::ims, ime, jms, jme, its, ite, jts, jte
-      integer, intent(in)::ids, ide, jds, jde, ints, inte, jnts, jnte, ips, ipe, jps, jpe
+      integer, intent(in)::ims, ime, jms, jme
+      integer, intent(in)::ids, ide, jds, jde
       real, intent(in)::t
       real, intent(in)::dt, dx, dy
       real, dimension(lims:lime, ljms:ljme), intent(inout)::lfn
@@ -1663,26 +1645,23 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
       !   call flush(6)
       crown = config_flags%crown ! Introd por ISILDA DA CUNHA MENEZES
 
-      call check_mesh_2dim(ints - 1, inte + 1, jnts - 1, jnte + 1, lims, lime, ljms, ljme)
-      call check_mesh_2dim(ints, inte, jnts, jnte, tims, time, tjms, tjme)
+
 
       call continue_at_boundary(1, 1, fire_lfn_ext_up, &
                                 lims, lime, ljms, ljme, &
                                 ids, ide, jds, jde, &
-                                ips, ipe, jps, jpe, &
-                                ints, inte, jnts, jnte, &
                                 itso, iteo, jtso, jteo, &
                                 lfn)
 
       call print_2d_stats(itso, iteo, jtso, jteo, lims, lime, ljms, ljme, &
                           lfn, 'tend_ls: lfn cont')
 
-      call write_array_m(ints - 1, inte + 1, jnts - 1, jnte + 1, lims, lime, ljms, ljme, lfn, 'tend_lfn_in', id)
+      call write_array_m(ids - 1, ide + 1, jds - 1, jde + 1, lims, lime, ljms, ljme, lfn, 'tend_lfn_in', id)
 
       nerr = 0
       tbound = 0
-      do j = jnts, jnte
-         do i = ints, inte
+      do j = jds, jde
+         do i = ids, ide
 
             diffRx = (lfn(i + 1, j) - lfn(i, j))/dx
             diffLx = (lfn(i, j) - lfn(i - 1, j))/dx
@@ -1745,7 +1724,7 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
 
             if (fire_grows_only .gt. 0) rr = max(rr, 0.)
 
-            if (i .ge. its .and. i .le. ite .and. j .ge. jts .and. j .le. jte) ros(i, j) = rr
+            if (i .ge. ids .and. i .le. ide .and. j .ge. jds .and. j .le. jde) ros(i, j) = rr
 
             !  print*,"KKKKNNN SURF rr",rr,"grad",grad
             !  call flush(6)
@@ -1778,11 +1757,15 @@ if (out .ne. out .or. .not. out .le. huge(out) .or. .not. out .ge. -huge(out)) c
          call warning(msg)
          call warning(msg2)
       end if
-
-      !LFR call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, ros, 'tend_ls: ros')
-      !LFR call print_2d_stats(ints, inte, jnts, jnte, tims, time, tjms, tjme, &
+!##################################################################################################
+! ATENCAO o LUIZ FLAVIO COMRENTOU ESTAS DUAS ROTINAS
+      !LFR call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, ros, 'tend_ls: ros')
+      !LFR call print_2d_stats(ids, ide, jds, jde, tims, time, tjms, tjme, &
       !LFR                    tend, 'tend_ls: tend out')
-
+! ########VOU COLOCALAS AQUI EM BAIXO DE NOVO se der bronca tirar
+      call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, ros, 'tend_ls: ros')
+      call print_2d_stats(ids, ide, jds, jde, tims, time, tjms, tjme, tend, 'tend_ls: tend out')
+!####################################                    
       tbound = 1/(tbound + tol)
 
       !  print*,"vou sair da tend_ls"

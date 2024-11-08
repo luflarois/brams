@@ -179,11 +179,8 @@ contains
       nfmc, &
       ids, ide, jds, jde, &
       ims, ime, jms, jme, &
-      ips, ipe, jps, jpe, &
-      its, ite, jts, jte, &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
       ir, jr, &
       nfuel_cat, &
       fndwi, &
@@ -197,42 +194,47 @@ contains
          id, nfmc, &
          ids, ide, jds, jde, &
          ims, ime, jms, jme, &
-         ips, ipe, jps, jpe, &
-         its, ite, jts, jte, &
          ifds, ifde, jfds, jfde, &
          ifms, ifme, jfms, jfme, &
-         ifts, ifte, jfts, jfte, &
          ir, jr
 
       real, intent(in), dimension(ifms:ifme, jfms:jfme):: nfuel_cat, &
                                                           fndwi
       real, intent(inout), dimension(ims:ime, nfmc, jms:jme):: fmc_gc
       real, intent(out), dimension(ifms:ifme, jfms:jfme):: fmc_g
-
-      real, dimension(its - 1:ite + 1, jts - 1:jte + 1):: fmc_k
-      real, dimension(ifts:ifte, jfts:jfte):: fmc_f, &
+     !###PEREIRA
+     ! real, dimension(ids:ide + 1, jds:jde + 1):: fmc_k
+      real, dimension(ims:ime, jms:jme):: fmc_k
+     !#######
+     !########PEREIRA
+     ! real, dimension(ifds:ifde, jfds:jfde):: fmc_f, &
+     !                                         nwdi_f
+      real, dimension(ifms:ifme, jfms:jfme):: fmc_f, &
                                               nwdi_f
+     !############
+
       integer::i, j, k, n
       integer::ibs, ibe, jbs, jbe
       real::f1, w1, w2, f2, fa, fc
 
       character(len=128)::msg
 
-      !print *, "estou no modulo_fr_drive_phys e estou na rotina fuel_moisture"; call flush (6)
-      !call flush (6)
-      call check_mesh_2dim(ifts, ifte, jfts, jfte, ifds, ifde, jfds, jfde)
-      call check_mesh_2dim(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme)
-
-      do j = jfts, jfte
-         do i = ifts, ifte
+      print *, "estou no modulo_fr_drive_phys e estou na rotina fuel_moisture"; call flush (6)
+      call flush (6)
+      
+    ! LFR call check_mesh_2dim(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fmc_f, 'fuel_moisture: fmc_f')
+     
+     
+      do j = jfds, jfde
+         do i = ifds, ifde
             fmc_g(i, j) = 0.
          end do
       end do
 
-      ibs = max(ids, its - 1)
-      ibe = min(ide, ite + 1)
-      jbs = max(jds, jts - 1)
-      jbe = min(jde, jte + 1)
+      ibs = ids
+      ibe = ide
+      jbs = jds
+      jbe = jde
 
       call check_mesh_2dim(ibs, ibe, jbs, jbe, ims, ime, jms, jme)
 
@@ -243,35 +245,34 @@ contains
                fmc_k(i, j) = fmc_gc(i, k, j)
             end do
          end do
+        !#### DESCOMENTEI O LFR
+        ! LFR call print_2d_stats(ibs, ibe, jbs, jbe, ids - 1, ide + 1, jds - 1, jde + 1, fmc_k, 'fuel_moisture: fmc_k')
+        !call print_2d_stats(ibs, ibe, jbs, jbe, ids - 1, ide + 1, jds - 1, jde + 1,fmc_k, 'fuel_moisture: fmc_k')
+        !##############
 
-         !LFR call print_2d_stats(ibs, ibe, jbs, jbe, its - 1, ite + 1, jts - 1, jte + 1, fmc_k, 'fuel_moisture: fmc_k')
-
-         !print *, "estou no modulo_fr_drive_phys e vou chamar interpolate z2fire"; call flush (6)
-         !call flush (6)
+         print *, "estou no modulo_fr_drive_phys e vou chamar interpolate z2fire"; call flush (6)
+         call flush (6)
          call interpolate_z2fire(id, 0, &
                                  ids, ide, jds, jde, &
-                                 its - 1, ite + 1, jts - 1, jte + 1, &
-                                 ips, ipe, jps, jpe, &
-                                 its, ite, jts, jte, &
+                                 ims, ime, jms, jme, &
                                  ifds, ifde, jfds, jfde, &
-                                 ifts, ifte, jfts, jfte, &
-                                 ifts, ifte, jfts, jfte, &
+                                 ifms, ifme, jfms, jfme, &
                                  ir, jr, &
                                  fmc_k, &
                                  fmc_f)
          print *, 'LFR-DBG: Sai de interpolate_z2fire'; call flush (6)
-         !LFR call print_2d_stats(ifts, ifte, jfts, jfte, ifts, ifte, jfts, jfte, fmc_f, 'fuel_moisture: fmc_f')
+
 
          if (k .eq. kfmc_ndwi) then
-            call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fndwi, 'fuel_moisture: fndwi')
+            call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fndwi, 'fuel_moisture: fndwi')
             write (msg, '(a,i4)') 'Assimilating NDWI in fuel moisture class ', k
             call message(msg)
          end if
 
-         !print *, "estou no modulo_fr_drive_phys e vou fazer calculo dos w e f e fmc_g"
-         !call flush (6)
-         do j = jfts, jfte
-            do i = ifts, ifte
+         print *, "estou no modulo_fr_drive_phys e vou fazer calculo dos w e f e fmc_g"
+         call flush (6)
+         do j = jfds, jfde
+            do i = ifds, ifde
                n = nfuel_cat(i, j)
                if (n > 0) then
                   if (k .ne. kfmc_ndwi) then
@@ -293,15 +294,17 @@ contains
          end do
 
       end do
-
-      !LFR call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fmc_g, 'fuel_moisture: fmc_g')
+      ! ##### DESCOMENTEI LFR
+      !LFR call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fmc_g, 'fuel_moisture: fmc_g')
+      !call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fmc_g,'fuel_moisture: fmc_g')
+      ! #########
 
    end subroutine fuel_moisture
 
    subroutine advance_moisture( &
       initialize, &
       ims, ime, jms, jme, &
-      its, ite, jts, jte, &
+      ids, ide, jds, jde, &
       nfmc, &
       moisture_dt, &
       fmep_decay_tlag, &
@@ -321,7 +324,7 @@ contains
       logical, intent(in):: initialize
       integer, intent(in):: &
          ims, ime, jms, jme, &
-         its, ite, jts, jte, &
+         ids, ide, jds, jde, &
          nfmc
       real, intent(in):: moisture_dt, fmep_decay_tlag
       real, intent(in), dimension(ims:ime, jms:jme):: t2, q2, psfc, rainc, rainnc
@@ -346,15 +349,15 @@ contains
       real::psfc_floor = 1000.
       integer :: ii,jj !LFR
 
-! !LFR
-!                         do ii=its,ite
-!                            do jj=jts,jte
-!                               write(60,*) ii,jj, fmep(ii, 1, jj)
-!                            end do
-!                         end do
-! !LFR
-      !print *, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture"
-      !call flush (6)
+!LFR
+                        do ii=ids,ide
+                           do jj=jds,jde
+                              write(60,*) ii,jj, fmep(ii, 1, jj)
+                           end do
+                        end do
+!LFR
+      print *, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture"
+      call flush (6)
       if (msglevel > 1) then
 !$OMP CRITICAL(SFIRE_PHYS_CRIT)
          write (msg, '(a,f10.2,a,i4,a,i4)') 'advance_moisture dt=', moisture_dt, 's using ', moisture_classes &
@@ -371,41 +374,41 @@ contains
 !$OMP END CRITICAL(SFIRE_PHYS_CRIT)
          call crash(msg)
       end if
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A2"
-!call flush(6)
-      call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, t2, 'T2')
-      call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, q2, 'Q2')
-      call print_2d_stats(its, ite, jts, jte, ims, ime, jms, jme, psfc, 'PSFC')
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A3"
-!call flush(6)
+      print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A2"
+      call flush(6)
+      call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, t2, 'T2')
+      call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, q2, 'Q2')
+      call print_2d_stats(ids, ide, jds, jde, ims, ime, jms, jme, psfc, 'PSFC')
+      print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A3"
+      call flush(6)
       if (initialize) then
          call message('advance_moisture: initializing, copying surface variables to old')
          call copy2old
       else
-         !   print*,"estou no modulo_fr_drive_phys vou para print_3d_stats_by_slice A4"
-         !   call flush(6)
-         call print_3d_stats_by_slice(its, ite, 1, moisture_classes, jts, jte, ims, ime, 1, nfmc, jms, jme, fmc_gc &
+            print*,"estou no modulo_fr_drive_phys vou para print_3d_stats_by_slice A4"
+            call flush(6)
+         call print_3d_stats_by_slice(ids, ide, 1, moisture_classes, jds, jde, ims, ime, 1, nfmc, jms, jme, fmc_gc &
                                       , 'before advance fmc_gc')
-         !   print*,"estou no modulo_fr_drive_phys  sai do print_3d_stats_by_slice A5"
-         !   call flush(6)
+            print*,"estou no modulo_fr_drive_phys  sai do print_3d_stats_by_slice A5"
+            call flush(6)
       end if
 
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A6"
-!call flush(6)
+     print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A6"
+     call flush(6)
       if (check_data .ge. 2 .or. msglevel .ge. 2) then
          t2_min = huge(t2_min)
          q2_min = huge(q2_min)
          psfc_min = huge(psfc_min)
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                t2_min = min(t2(i, j), t2_min)
                q2_min = min(q2(i, j), q2_min)
                psfc_min = min(psfc(i, j), psfc_min)
             end do
          end do
 
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A7"
-!call flush(6)
+      print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A7"
+      call flush(6)
          bad_wrf = (t2_min < t2_floor .or. psfc_min < psfc_floor .or. q2_min < q2_floor)
          if (bad_wrf .or. msglevel .ge. 2) then
 !$OMP CRITICAL(SFIRE_PHYS_CRIT)
@@ -417,8 +420,8 @@ contains
 !$OMP END CRITICAL(SFIRE_PHYS_CRIT)
          end if
 
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A8"
-!call flush(6)
+       print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A8"
+       call flush(6)
          if (bad_wrf) then
             if (check_data .ge. 3) then
                call crash('advance_moisture: invalid data passed from WRF')
@@ -428,23 +431,23 @@ contains
          end if
       end if
 
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A9"
-!call flush(6)
+     print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A9"
+     call flush(6)
       rhmax = -huge(rhmax)
       rhmin = huge(rhmin)
       rainmax = -huge(rainmax)
       rainmin = huge(rainmin)
-!print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A10"
-!call flush(6)
-      do j = jts, jte
+     print*, "estou no modulo_fr_drive_phys e estou na rotina advance_moisture A10"
+     call flush(6)
+      do j = jds, jde
          do k = 1, moisture_classes
-            do i = its, ite
+            do i = ids, ide
 
                rain_diff = ((rainc(i, j) + rainnc(i, j)) - rain_old(i, j))
-               !  print*,'rotina advance_moisture rain_diff',rain_diff
-               !  call flush(6)
-               !  print*,'rotina advance_moisture moisture_dt',moisture_dt
-               !  call flush(6)
+                 print*,'rotina advance_moisture rain_diff',rain_diff
+                 call flush(6)
+                 print*,'rotina advance_moisture moisture_dt',moisture_dt
+                 call flush(6)
                if (moisture_dt > 0.) then
                   rain_int = 3600.*rain_diff/moisture_dt
                else
@@ -499,8 +502,8 @@ contains
 !$OMP END CRITICAL(SFIRE_PHYS_CRIT)
                   end if
                end if
-               ! print*,"ADVANCE A1"
-               ! call flush(6)
+                print*,"ADVANCE A1"
+                call flush(6)
                if (R > 0.) then
                   select case (wetting_model(k))
                   case (1)
@@ -517,14 +520,14 @@ contains
                      if (d .ne. d .or. w .ne. w) call crash('equilibrium moisture calculation failed, result is NaN')
                      d = d*0.01
                      w = w*0.01
-                     ! if(isnan(deltaE)) Then
-                     !    print *, 'LFR-DBG: i,j,k,deltaE=',i,j,k,deltaE; call flush(6)
-                     !    do ii=its,ite
-                     !       do jj=jts,jte
-                     !          write(55,*) ii,jj, fmep(ii, 1, jj)
-                     !       end do
-                     !    end do
-                     ! endif
+                     if(isnan(deltaE)) Then
+                        print *, 'LFR-DBG: i,j,k,deltaE=',i,j,k,deltaE; call flush(6)
+                        do ii=ids,ide
+                           do jj=jds,jde
+                              write(55,*) ii,jj, fmep(ii, 1, jj)
+                           end do
+                        end do
+                     endif
                         
                      EMC_d = max(max(d, w) + deltaE, 0.0)
                      EMC_w = max(min(d, w) + deltaE, 0.0)
@@ -532,8 +535,8 @@ contains
                   end select
                end if
 
-               ! print*,"ADVANCE A2"
-               ! call flush(6)
+                print*,"ADVANCE A2"
+                call flush(6)
                if (rlag > 0.0) then
 
                   if (.not. initialize .or. fmc_gc_initialization(k) .eq. 0) then
@@ -557,15 +560,15 @@ contains
                      fmc = fmc_old + (equi - fmc_old)*(1 - exp(-change))
                   end if
                   fmc_gc(i, k, j) = fmc
-                  !    print*,'ADVANCE fmc_gc',  fmc_gc(i,k,j)
-                  !    call flush(6)
+                      print*,'ADVANCE fmc_gc',  fmc_gc(i,k,j),"i = ",i,"j = ",j,"k = ",k
+                      call flush(6)
 
                   fmc_equi(i, k, j) = equi
-                  !   print*,'ADVANCE fmc_equi',  fmc_equi(i,k,j)
-                  !   call flush(6)
+                     print*,'ADVANCE fmc_equi',  fmc_equi(i,k,j),"i = ",i,"j = ",j,"k = ",k
+                     call flush(6)
                   fmc_lag(i, k, j) = 1.0/(3600.0*rlag)
-                  !   print*,'ADVANCE fmc_lag',  fmc_lag(i,k,j)
-                  !   call flush(6)
+                     print*,'ADVANCE fmc_lag',  fmc_lag(i,k,j),"i = ",i,"j =",j,"k = ",k
+                     call flush(6)
                   if (fire_print_msg .ge. 3) then
 !$OMP CRITICAL(SFIRE_PHYS_CRIT)
                      write (msg, *) 'i=', i, ' j=', j, 'EMC_w=', EMC_w, ' EMC_d=', EMC_d
@@ -580,22 +583,22 @@ contains
          end do
       end do
 
-!print*,'ADVANCE A6'
-!call flush(6)
+     print*,'ADVANCE A6'
+     call flush(6)
       change = moisture_dt/(fmep_decay_tlag*3600.)
-      print *,'LFR-DBG: change,tol:',change,tol
+    !  print *,'LFR-DBG: moisture_dt,fmep_decay_tlag,fmep_decay_tlag*3600,change,tol:',moisture_dt,fmep_decay_tlag,fmep_decay_tlag*3600,change,tol
       if (change < tol) then
-         do j = jts, jte
+         do j = jds, jde
             do k = 1, 2
-               do i = its, ite
+               do i = ids, ide
                   fmep(i, k, j) = fmep(i, k, j)*(1.0 - change*(1.0 - 0.5*change))
                end do 
             end do
          end do
       else
-         do j = jts, jte
+         do j = jds, jde
             do k = 1, 2
-               do i = its, ite
+               do i = ids, ide
                   fmep(i, k, j) = fmep(i, k, j)*exp(-change)
                end do 
             end do
@@ -604,9 +607,9 @@ contains
 
 
 
-!LFR      do j = jts, jte
+!LFR      do j = jds, jde
 !LFR         do k = 1, 2
-!LFR            do i = its, ite
+!LFR            do i = ids, ide
 !LFR               change = moisture_dt/(fmep_decay_tlag*3600.)
 !LFR               if (change < tol) then
 !LFR                  fmep(i, k, j) = fmep(i, k, j)*(1.0 - change*(1.0 - 0.5*change))
@@ -624,50 +627,50 @@ contains
 !call flush(6)
       if (fire_print_msg .ge. 2) then
 !$OMP CRITICAL(SFIRE_PHYS_CRIT)
-         ! print*,"ADVANCE A4-a"
-         ! call flush(6)
+          print*,"ADVANCE A4-a"
+          call flush(6)
          write (msg, 2) 'Rain intensity    min', rainmin, ' max', rainmax, ' mm/h'
-         ! print*,"ADVANCE A4-a1"
-         ! call flush(6)
+          print*,"ADVANCE A4-a1"
+          call flush(6)
          call message(msg)
-         ! print*,"ADVANCE A4-a2"
-         ! call flush(6)
+          print*,"ADVANCE A4-a2"
+          call flush(6)
          if (rainmin < 0.) then
             call message('WARNING rain accumulation must increase')
          end if
-         ! print*,"ADVANCE A4-b"
-         ! call flush(6)
+          print*,"ADVANCE A4-b"
+          call flush(6)
          write (msg, 2) 'Relative humidity min', 100*rhmin, ' max', 100*rhmax, '%'
-         ! print*,"ADVANCE A4-b1"
-         ! call flush(6)
+          print*,"ADVANCE A4-b1"
+          call flush(6)
          call message(msg)
-         ! print*,"ADVANCE A4-c"
-         ! call flush(6)
+          print*,"ADVANCE A4-c"
+          call flush(6)
          if (.not. (rhmax <= 1.0 .and. rhmin >= 0)) then
             call message('WARNING Relative humidity must be between 0 and 100%')
          end if
-         ! print*,"ADVANCE A4-c1"
-         ! call flush(6)
+          print*,"ADVANCE A4-c1"
+          call flush(6)
 2        format(2(a, f10.2), a)
 !$OMP END CRITICAL(SFIRE_PHYS_CRIT)
       end if
-!print*,"vou para o print_3d_stats_by_slice A2"
-!call flush(6)
-      call print_3d_stats_by_slice(its, ite, 1, moisture_classes, jts, jte, ims, ime, 1, nfmc, jms, jme, fmc_equi &
+      print*,"vou para o print_3d_stats_by_slice A2"
+      call flush(6)
+      call print_3d_stats_by_slice(ids, ide, 1, moisture_classes, jds, jde, ims, ime, 1, nfmc, jms, jme, fmc_equi &
                                    , 'equilibrium fmc_equi')
-!print*,"sai print_3d_stats_by_slice A2"
-!call flush(6)
-!print*,"vou para o print_3d_stats_by_slice A3"
-!call flush(6)
-      call print_3d_stats_by_slice(its, ite, 1, moisture_classes, jts, jte, ims, ime, 1, nfmc, jms, jme, fmc_lag, 'time lag')
-!print*,"sai print_3d_stats_by_slice A3"
-!call flush(6)
-!print*,"vou para o print_3d_stats_by_slice A4"
-!call flush(6)
-      call print_3d_stats_by_slice(its, ite, 1, moisture_classes, jts, jte, ims, ime, 1, nfmc, jms, jme, fmc_gc &
+      print*,"sai print_3d_stats_by_slice A2"
+      call flush(6)
+      print*,"vou para o print_3d_stats_by_slice A3"
+      call flush(6)
+      call print_3d_stats_by_slice(ids, ide, 1, moisture_classes, jds, jde, ims, ime, 1, nfmc, jms, jme, fmc_lag, 'time lag')
+      print*,"sai print_3d_stats_by_slice A3"
+      call flush(6)
+      print*,"vou para o print_3d_stats_by_slice A4"
+      call flush(6)
+      call print_3d_stats_by_slice(ids, ide, 1, moisture_classes, jds, jde, ims, ime, 1, nfmc, jms, jme, fmc_gc &
                                    , 'after advance fmc_gc')
-!print*,"sai print_3d_stats_by_slice A4"
-!call flush(6)
+      print*,"sai print_3d_stats_by_slice A4"
+      call flush(6)
       call copy2old
       print *, "advance moiture vou sair da rotina"
       call flush (6)
@@ -677,8 +680,8 @@ contains
 
       subroutine copy2old
 
-         do j = jts, jte
-            do i = its, ite
+         do j = jds, jde
+            do i = ids, ide
                rain_old(i, j) = rainc(i, j) + rainnc(i, j)
                t2_old(i, j) = t2(i, j)
                q2_old(i, j) = q2(i, j)
@@ -1104,7 +1107,6 @@ contains
          call set_fire_params( &
             1, 3, 1, nsteps, &
             1, 3, 1, nsteps, &
-            1, 3, 1, nsteps, &
             0., 0., k, &
             nfuel_cat, fuel_time, &
             fp)
@@ -1174,7 +1176,6 @@ contains
    subroutine set_fire_params( &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
       fdx, fdy, nfuel_cat0, &
       nfuel_cat, fuel_time, &
       fp)
@@ -1182,7 +1183,6 @@ contains
       implicit none
 
       integer, intent(in)::ifds, ifde, jfds, jfde
-      integer, intent(in)::ifts, ifte, jfts, jfte
       integer, intent(in)::ifms, ifme, jfms, jfme
       real, intent(in):: fdx, fdy
       integer, intent(in)::nfuel_cat0
@@ -1202,11 +1202,11 @@ contains
       !call flush (6)
       if (.not. have_fuel_cats) call crash('set_fire_params: fuel categories not yet set')
 
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fp%fmc_g, 'set_fire_params: fmc_g')
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fp%fmc_g, 'set_fire_params: fmc_g')
 
       nerr = 0
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
 
             k = int(nfuel_cat(i, j))
             if (k .ge. no_fuel_cat .and. k .le. no_fuel_cat2) then
@@ -1313,7 +1313,6 @@ contains
    subroutine set_fire_crown_params( &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
       fdx, fdy, nfuel_cat0, &
       nfuel_cat, fuel_time, &
       fp)
@@ -1321,7 +1320,6 @@ contains
       implicit none
 
       integer, intent(in)::ifds, ifde, jfds, jfde
-      integer, intent(in)::ifts, ifte, jfts, jfte
       integer, intent(in)::ifms, ifme, jfms, jfme
       real, intent(in):: fdx, fdy
       integer, intent(in)::nfuel_cat0
@@ -1342,12 +1340,12 @@ contains
       if (.not. have_fuel_cats) call crash('set_fire_params: fuel categories &
  &      notyet set')
 
-      call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fp%fmc_g, &
+      call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fp%fmc_g, &
                           'set_fire_params:fmc_g')
 
       nerr = 0
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
 
             k = 10
 
@@ -1433,14 +1431,14 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!! INTRODUZIDO POR ISILDA CUNHA MENEZES
-   subroutine consume_crown(i, j, rr_FM10, I_initiation, rr_active, fp)
+   subroutine consume_crown(i, j, rr_FM10,surface_rr, I_initiation, rr_active, fp)
       !subroutine consume_crown(i,j,rr_FM10,fp%r_0_FM10,&
       !I_initiation,rr_active,fp%CFB,fp%HPA)
 
       implicit none
 
       real, intent(out)::rr_active
-      real, intent(in)::I_initiation, rr_FM10
+      real, intent(in)::I_initiation, rr_FM10, surface_rr
       integer, intent(in)::i, j
       integer :: k, l
       real :: R_initiation, t_R
@@ -1465,8 +1463,10 @@ contains
       rr_active = 3.34*(FME/FME_0)*rr_FM10
 !print*,"rr_active 0.166666667 =",rr_active
 !call flush(6)
-      if ((rr_active > R_initiation) .and. (rr_active > 0.166666667)) then
-         fp%CFB(i, j) = 1 - exp(-0.23*(rr_active - R_initiation))
+     ! if ((rr_active > R_initiation) .and. (rr_active > 0.166666667)) then
+      if(surface_rr >= R_initiation + 32.8084)then !m/ft
+       !  fp%CFB(i, j) = 1 - exp(-0.23*(rr_active - R_initiation))
+         fp%CFB(i,j) = 1-exp(-0.23*(surface_rr - R_initiation))
 !print*,"CFB",fp%CFB(i,j)
 !call flush(6)
       end if
@@ -1534,17 +1534,16 @@ contains
 
    subroutine heat_fluxes(dt, fp, &
                           ifms, ifme, jfms, jfme, &
-                          ifts, ifte, jfts, jfte, &
-                          iffs, iffe, jffs, jffe, &
+                          ifds, ifde, jfds, jfde, &
                           fgip, fuel_frac_burnt, &
                           grnhft, grnqft)
       implicit none
 
       type(fire_params), intent(in)::fp
       real, intent(in)::dt
-      integer, intent(in)::ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, iffs, iffe, jffs, jffe
+      integer, intent(in)::ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme
       real, intent(in), dimension(ifms:ifme, jfms:jfme):: fgip
-      real, intent(in), dimension(iffs:iffe, jffs:jffe):: fuel_frac_burnt
+      real, intent(in), dimension(ifms:ifme, jfms:jfme):: fuel_frac_burnt
       real, intent(out), dimension(ifms:ifme, jfms:jfme):: grnhft
       real, intent(out), dimension(ifms:ifme, jfms:jfme), optional:: grnqft
 
@@ -1555,15 +1554,15 @@ contains
       !print *, "estou no modulo_fr_drive_phys e estou na rotina heat_fluxes"
       !call flush (6)
       latent = present(grnqft)
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             dmass = &
                fgip(i, j) &
                *fuel_frac_burnt(i, j)
             bmst = fp%fmc_g(i, j)/(1.+fp%fmc_g(i, j))
             grnhft(i, j) = (dmass/dt)*(1.-bmst)*cmbcnst
             if (latent) grnqft(i, j) = (bmst + (1.-bmst)*.56)*(dmass/dt)*xlv
-            !if(grnhft(i,j)>0) write(90,*) i,j,grnhft(i,j), dmass,dt,bmst,cmbcnst,fp%fmc_g(i, j),fgip(i, j),fuel_frac_burnt(i, j)!LFR-DBG
+            if(grnhft(i,j)>0) write(90,*) i,j,grnhft(i,j), dmass,dt,bmst,cmbcnst,fp%fmc_g(i, j),fgip(i, j),fuel_frac_burnt(i, j)!LFR-DBG
          end do
       end do
 
@@ -1571,12 +1570,12 @@ contains
 
    subroutine set_nfuel_cat( &
       ifms, ifme, jfms, jfme, &
-      ifts, ifte, jfts, jfte, &
+      ifds, ifde, jfds, jfde, &
       ifuelread, nfuel_cat0, zsf, nfuel_cat)
 
       implicit none
 
-      integer, intent(in)::   ifts, ifte, jfts, jfte, &
+      integer, intent(in)::   ifds, ifde, jfds, jfde, &
                             ifms, ifme, jfms, jfme
 
       integer, intent(in)::ifuelread, nfuel_cat0
@@ -1601,8 +1600,8 @@ contains
 !$OMP END CRITICAL(SFIRE_PHYS_CRIT)
       else if (ifuelread .eq. 0) then
 
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                nfuel_cat(i, j) = real(nfuel_cat0)
             end do
          end do
@@ -1613,8 +1612,8 @@ contains
 
       else if (ifuelread .eq. 1) then
 
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
 
                t1 = zsf(i, j)
                if (t1 .le. 1524.) then
@@ -1814,7 +1813,7 @@ contains
 
             rr_FM10 = FM10_ros_back + FM10_ros_wind + FM10_ros_slope
             !print*,"estou na rotina fire_ros - vou entrar em consume_crown"
-            call consume_crown(i, j, rr_FM10, I_initiation, rr_active, fp)
+            call consume_crown(i, j, rr_FM10, surface_rr, I_initiation, rr_active, fp)
 
             total_rr = surface_rr + fp%CFB(i, j)*(rr_active - surface_rr)
             !    print*,"velocidade crown =",total_rr
@@ -2022,7 +2021,7 @@ contains
 
    subroutine fire_risk(fp, &
                         ifms, ifme, jfms, jfme, &
-                        ifts, ifte, jfts, jfte, &
+                        ifds, ifde, jfds, jfde, &
                         nfuel_cat, &
                         f_ros0, f_rosx, f_rosy, f_ros, &
                         f_int, f_lineint, f_lineint2)
@@ -2030,7 +2029,7 @@ contains
       type(fire_params), intent(in)::fp
       integer, intent(in):: &
          ifms, ifme, jfms, jfme, &
-         ifts, ifte, jfts, jfte
+         ifds, ifde, jfds, jfde
       real, intent(in), dimension(ifms:ifme, jfms:jfme) :: nfuel_cat
       real, intent(out), dimension(ifms:ifme, jfms:jfme) :: &
          f_ros0, f_rosx, f_rosy, f_ros, &
@@ -2043,8 +2042,8 @@ contains
 
 !print*,"estou no modulo_fr_drive_phys e entrei na rotina fire_risk"
 !call flush(6)
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
 
             speed = sqrt(fp%vx(i, j)*fp%vx(i, j) + fp%vy(i, j)*fp%vy(i, j)) + tiny(speed)
 
@@ -2067,8 +2066,7 @@ contains
 
       call fire_intensity(fp, &
                           ifms, ifme, jfms, jfme, &
-                          ifts, ifte, jfts, jfte, &
-                          ifms, ifme, jfms, jfme, &
+                          ifds, ifde, jfds, jfde, &
                           f_ros, nfuel_cat, &
                           f_lineint, f_lineint2, f_int)
 
@@ -2076,58 +2074,55 @@ contains
 
    subroutine fire_intensity(fp, &
                              ifms, ifme, jfms, jfme, &
-                             ifts, ifte, jfts, jfte, &
-                             irms, irme, jrms, jrme, &
+                             ifds, ifde, jfds, jfde, &
                              ros, nfuel_cat, &
                              fibyram, filimit, f_int)
 
       type(fire_params), intent(in)::fp
       integer, intent(in):: &
          ifms, ifme, jfms, jfme, &
-         ifts, ifte, jfts, jfte, &
-         irms, irme, jrms, jrme
-      real, intent(in), dimension(irms:irme, jrms:jrme) :: ros
+         ifds, ifde, jfds, jfde
+         
+      real, intent(in), dimension(ifms:ifme, jfms:jfme) :: ros
       real, intent(in), dimension(ifms:ifme, jfms:jfme) :: nfuel_cat
       real, intent(out), dimension(ifms:ifme, jfms:jfme) :: &
          fibyram, filimit
       real, intent(out), dimension(ifms:ifme, jfms:jfme), optional :: f_int
 
       integer:: i, j, k
-      real, dimension(ifts:ifte, jfts:jfte):: rate_frac
+      real, dimension(ifds:ifde, jfds:jfde):: rate_frac
       real:: dt_fake = 1.
 
 !print*,"estou no modulo_fr_drive_phys e entrei na rotina fire_intensity"
 !call flush(6)
       call heat_fluxes(dt_fake, fp, &
                        ifms, ifme, jfms, jfme, &
-                       ifts, ifte, jfts, jfte, &
-                       irms, irme, jrms, jrme, &
+                       ifds, ifde, jfds, jfde, &
                        fp%fgip, ros, &
                        fibyram)
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             k = int(nfuel_cat(i, j))
             fibyram(i, j) = fibyram(i, j)*ffw(k)
          end do
       end do
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             rate_frac(i, j) = 0.5*ros(i, j)/fp%fuel_time(i, j)
          end do
       end do
 
       call heat_fluxes(dt_fake, fp, &
                        ifms, ifme, jfms, jfme, &
-                       ifts, ifte, jfts, jfte, &
-                       ifts, ifte, jfts, jfte, &
+                       ifds, ifde, jfds, jfde, &
                        fp%fgip, rate_frac, &
                        filimit)
 
       if (present(f_int)) then
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                k = int(nfuel_cat(i, j))
 
                rate_frac(i, j) = ffw(k)/(fp%fuel_time(i, j)*(-log(1.-ffw(k))))
@@ -2136,8 +2131,7 @@ contains
 
          call heat_fluxes(dt_fake, fp, &
                           ifms, ifme, jfms, jfme, &
-                          ifts, ifte, jfts, jfte, &
-                          ifts, ifte, jfts, jfte, &
+                          ifds, ifde, jfds, jfde, &
                           fp%fgip, rate_frac, &
                           f_int)
 
@@ -2149,8 +2143,7 @@ contains
 
    subroutine fire_total_intensity(fp, &
                                    ifms, ifme, jfms, jfme, &
-                                   ifts, ifte, jfts, jfte, &
-                                   irms, irme, jrms, jrme, &
+                                   ifds, ifde, jfds, jfde, &
                                    fgip, ros, &
                                    I_final)
 
@@ -2158,10 +2151,10 @@ contains
 
       type(fire_params), intent(in)::fp
 
-      integer, intent(in)::ifms, ifme, jfms, jfme, ifts, ifte, jfts, jfte, &
-                            irms, irme, jrms, jrme
+      integer, intent(in)::ifms, ifme, jfms, jfme, ifds, ifde, jfds, jfde
+
       real, intent(in), dimension(ifms:ifme, jfms:jfme):: fgip
-      real, intent(in), dimension(irms:irme, jrms:jrme)::  ros
+      real, intent(in), dimension(ifms:ifme, jfms:jfme)::  ros
 !real, dimension(ifms,ifme,jfms,jfme):: grnhft
       real, intent(out), dimension(ifms:ifme, jfms:jfme):: I_final
       integer:: i, j
@@ -2171,8 +2164,8 @@ contains
 
 !print*,"estou no modulo_fr_drive_phys e entrei na rotina fire_total_intensity"
 !call flush(6)
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             dmass = fgip(i, j)*ros(i, j)
             bmst = fp%fmc_g(i, j)/(1.+fp%fmc_g(i, j))
             grnhft = (dmass/dt)*(1.-bmst)*cmbcnst

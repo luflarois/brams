@@ -22,8 +22,6 @@ contains
       ifuelread, nfuel_cat0, &
       ifds, ifde, jfds, jfde, &
       ifms, ifme, jfms, jfme, &
-      ifps, ifpe, jfps, jfpe, &
-      ifts, ifte, jfts, jfte, &
       time_start, dt, &
       fdx, fdy, &
       ignition, hfx, &
@@ -39,7 +37,7 @@ contains
       nfuel_cat, &
       fuel_time, fwh, fz0, &
       fp, &
-      flineint_total, config_flags) !!!! flineint_total,config_flags introduzido por ISILDA CUNHA MENEZES
+      flineint_total,FRP, config_flags) !!!! flineint_total,FRP,config_flags introduzido por ISILDA CUNHA MENEZES
 
       implicit none
 
@@ -51,10 +49,9 @@ contains
       logical, intent(in)::run_fuel_moisture
 
       integer, intent(in) :: ifuelread, nfuel_cat0
-      integer, intent(in) :: ifds, ifde, jfds, jfde, &
-                             ifps, ifpe, jfps, jfpe
-      integer, intent(in) :: ifts, ifte, jfts, jfte
+      integer, intent(in) :: ifds, ifde, jfds, jfde
       integer, intent(in) :: ifms, ifme, jfms, jfme
+      
       real, intent(in) :: time_start, dt
       real, intent(in) :: fdx, fdy
 
@@ -80,14 +77,14 @@ contains
          fgrnhfx, fgrnqfx, &
          ros, flineint, flineint2, &
          f_ros0, f_rosx, f_rosy, f_ros, &
-         f_int, f_lineint, f_lineint2, flineint_total !!!! flineint_total introduzido por ISILDA CUNHA MENEZES
+         f_int, f_lineint, f_lineint2, flineint_total,FRP !!!! flineint_total e FRP introduzido por ISILDA CUNHA MENEZES
 
       real, intent(inout), dimension(ifms:ifme, jfms:jfme)::nfuel_cat
       real, intent(inout), dimension(ifms:ifme, jfms:jfme):: fuel_time, fwh, fz0
       type(fire_params), intent(inout)::fp
 
       integer :: xifms, xifme, xjfms, xjfme
-      real, dimension(ifts:ifte, jfts:jfte)::fuel_frac_end
+      real, dimension(ifds:ifde, jfds:jfde)::fuel_frac_end
       integer::ignited, ig, i, j, itso, iteo, jtso, jteo
       real::tbound, err, erri, errj, maxgrad, grad, tfa, thf, mhf, tqf, mqf, aw, mw, t
       character(len=128)::msg
@@ -97,9 +94,10 @@ contains
 !#### INTRODUZIDO POR ISILDA CUNHA MENEZES
       type(grid_config_rec_type), intent(IN)  :: config_flags
       logical :: crown
+      real :: heat_Q
 !####
 
-      call check_mesh_2dim(ifts - 1, ifte + 1, jfts - 1, jfte + 1, ifms, ifme, jfms, jfme)
+      call check_mesh_2dim(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme)
 
       xifms = ifms
       xifme = ifme
@@ -116,12 +114,12 @@ contains
          if (replay) then
 
             call message('replay, setting the level set function', level=1)
-            do j = jfts, jfte
-               do i = ifts, ifte
+            do j = jfds, jfde
+               do i = ifds, ifde
                   lfn(i, j) = tign(i, j) - time_start
                end do
             end do
-            call check_lfn_tign('replay, lfn from tign', time_start, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+            call check_lfn_tign('replay, lfn from tign', time_start, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
          end if
       elseif (ifun .eq. 2) then
 
@@ -130,15 +128,13 @@ contains
          call continue_at_boundary(1, 1, 0., &
                                    ifms, ifme, jfms, jfme, &
                                    ifds, ifde, jfds, jfde, &
-                                   ifps, ifpe, jfps, jfpe, &
-                                   ifts, ifte, jfts, jfte, &
                                    itso, iteo, jtso, jteo, &
                                    fp%zsf)
 
          err = 0.
          maxgrad = 0.
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                erri = fp%dzdxf(i, j) - (fp%zsf(i + 1, j) - fp%zsf(i - 1, j))/(2.*fdx)
                errj = fp%dzdyf(i, j) - (fp%zsf(i, j + 1) - fp%zsf(i, j - 1))/(2.*fdy)
                err = max(err, abs(erri), abs(errj))
@@ -154,7 +150,7 @@ contains
          !call flush (6)
          call set_nfuel_cat( &
             ifms, ifme, jfms, jfme, &
-            ifts, ifte, jfts, jfte, &
+            ifds, ifde, jfds, jfde, &
             ifuelread, nfuel_cat0, &
             fp%zsf, nfuel_cat)
 
@@ -163,7 +159,6 @@ contains
          call set_fire_params( &
             ifds, ifde, jfds, jfde, &
             ifms, ifme, jfms, jfme, &
-            ifts, ifte, jfts, jfte, &
             fdx, fdy, nfuel_cat0, &
             nfuel_cat, fuel_time, &
             fp)
@@ -177,7 +172,6 @@ contains
             call set_fire_crown_params( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                fdx, fdy, nfuel_cat0, &
                nfuel_cat, fuel_time, &
                fp)
@@ -189,24 +183,23 @@ contains
             call init_no_fire( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                fdx, fdy, time_start, dt, &
                fuel_frac, fire_area, lfn, tign_in, tign)
 
          end if
 
-         call check_lfn_tign('after initialization:', time_start, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+         call check_lfn_tign('after initialization:', time_start, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
          !print *, "estou dentro ifun=2 na rotina sfire_model e vou entrar na fuel_left"
          !call flush (6)
          if (replay) then
             call message('replay, recomputing fuel fraction')
             call fuel_left( &
+              ifds, ifde, jfds, jfde, &
+               ifms, ifme, jfms, jfme, &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
-               ifms, ifme, jfms, jfme, &
                lfn, tign, fuel_time, time_start, fuel_frac, fire_area)
-            call check_lfn_tign('recomputed fuel fraction', time_start, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+            call check_lfn_tign('recomputed fuel fraction', time_start, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
          end if
 
       elseif (ifun .eq. 3) then
@@ -220,7 +213,6 @@ contains
             call set_fire_params( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                fdx, fdy, nfuel_cat0, &
                nfuel_cat, fuel_time, &
                fp)
@@ -233,7 +225,6 @@ contains
             call set_fire_crown_params( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                fdx, fdy, nfuel_cat0, &
                nfuel_cat, fuel_time, &
                fp)
@@ -244,14 +235,10 @@ contains
             aw = fun_real(RNRM_SUM, &
                           ifms, ifme, 1, 1, jfms, jfme, &
                           ifds, ifde, 1, 1, jfds, jfde, &
-                          ifts, ifte, 1, 1, jfts, jfte, &
-                          0, 0, 0, &
                           fp%vx, fp%vy)/((ifde - ifds + 1)*(jfde - jfds + 1))
             mw = fun_real(RNRM_MAX, &
                           ifms, ifme, 1, 1, jfms, jfme, &
                           ifds, ifde, 1, 1, jfds, jfde, &
-                          ifts, ifte, 1, 1, jfts, jfte, &
-                          0, 0, 0, &
                           fp%vx, fp%vy)
 !$OMP MASTER
             write (msg, 91) time_start, 'Average surface wind', aw, 'm/s'
@@ -261,7 +248,7 @@ contains
 !$OMP END MASTER
          end if
 
-         call print_2d_stats(ifts, ifte, jfts, jfte, &
+         call print_2d_stats(ifds, ifde, jfds, jfde, &
                              ifms, ifme, jfms, jfme, &
                              fuel_frac, 'model: fuel_frac start')
 
@@ -272,16 +259,14 @@ contains
                call prop_ls(ifun, id, 1, &
                             ifds, ifde, jfds, jfde, &
                             ifms, ifme, jfms, jfme, &
-                            ifps, ifpe, jfps, jfpe, &
-                            ifts, ifte, jfts, jfte, &
                             time_start, dt, fdx, fdy, tbound, &
                             lfn, lfn_out, tign, ros, fp, config_flags &
                             ) !config_flags e ifun int pro ISILDA CM
                !print *, "estou no model,sai do prop_ls"
                !call flush (6)
             else
-               do j = jfts, jfte
-                  do i = ifts, ifte
+               do j = jfds, jfde
+                  do i = ifds, ifde
                      lfn_out(i, j) = tign(i, j) - (time_start + dt)
                   end do
                end do
@@ -291,7 +276,7 @@ contains
 
          end if
 
-         call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, ros, 'model: ros')
+         call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, ros, 'model: ros')
 
       elseif (ifun .eq. 5) then
 
@@ -302,8 +287,6 @@ contains
                call prop_ls(ifun, id, 2, &
                             ifds, ifde, jfds, jfde, &
                             ifms, ifme, jfms, jfme, &
-                            ifps, ifpe, jfps, jfpe, &
-                            ifts, ifte, jfts, jfte, &
                             time_start, dt, fdx, fdy, tbound, &
                             lfn, lfn_out, tign, ros, fp, config_flags &
                             ) !config_flags e ifun int pro ISILDA CM
@@ -312,17 +295,17 @@ contains
             end if
          end if
 
-         call check_lfn_tign('time step end', time_start + dt, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn_out, tign)
+         call check_lfn_tign('time step end', time_start + dt, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn_out, tign)
 
          if (.not. freeze_fire) then
-         do j = jfts, jfte
-            do i = ifts, ifte
+         do j = jfds, jfde
+            do i = ifds, ifde
                lfn(i, j) = lfn_out(i, j)
 
             end do
          end do
 
-         call check_lfn_tign('before ignition', time_start + dt, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+         call check_lfn_tign('before ignition', time_start + dt, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
 
          if (fire_tign_in_time > tiny(dt)) then
             if (ignition%num_lines > 0) then
@@ -333,11 +316,10 @@ contains
             call ignite_from_tign_in( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                time_start, time_start + dt, &
                tign_in, &
                lfn, tign, ignited)
-            call check_lfn_tign('after ignite_from_tign_in', time_start + dt, ifts, ifte, jfts, jfte, ifms &
+            call check_lfn_tign('after ignite_from_tign_in', time_start + dt, ifds, ifde, jfds, jfde, ifms &
                                 , ifme, jfms, jfme, lfn, tign)
          end if
 
@@ -348,25 +330,24 @@ contains
             call ignite_fire( &
                ifds, ifde, jfds, jfde, &
                ifms, ifme, jfms, jfme, &
-               ifts, ifte, jfts, jfte, &
                ignition%line(ig), &
                time_start, time_start + dt, &
                coord_xf, coord_yf, ignition%unit_fxlong, ignition%unit_fxlat, &
                lfn, tign, ignited)
 
-            call write_array_m(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, 'lfn_ig', id)
-            call write_array_m(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, coord_xf, 'coord_xf_ig', id)
-            call write_array_m(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, coord_yf, 'coord_yf_ig', id)
+            call write_array_m(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, 'lfn_ig', id)
+            call write_array_m(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, coord_xf, 'coord_xf_ig', id)
+            call write_array_m(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, coord_yf, 'coord_yf_ig', id)
 
          end do
          else
          call message('sfire_model: EXPERIMENTAL: skipping ignition')
          end if
 
-         call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, &
+         call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, &
                              lfn, 'sfire_model: lfn out')
 
-         call check_lfn_tign('after ignition', time_start + dt, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+         call check_lfn_tign('after ignition', time_start + dt, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
 
       elseif (ifun .eq. 6) then
 
@@ -374,8 +355,7 @@ contains
          !call flush (6)
          call fire_intensity(fp, &
                              ifms, ifme, jfms, jfme, &
-                             ifts, ifte, jfts, jfte, &
-                             ifms, ifme, jfms, jfme, &
+                             ifds, ifde, jfds, jfde, &
                              ros, nfuel_cat, &
                              flineint, flineint2)
 
@@ -385,16 +365,15 @@ contains
             !call flush (6)
             call fire_total_intensity(fp, &
                                       ifms, ifme, jfms, jfme, &
-                                      ifts, ifte, jfts, jfte, &
-                                      ifms, ifme, jfms, jfme, &
+                                      ifds, ifde, jfds, jfde, &
                                       fp%fgip, ros, &
                                       flineint_total)
          end if
 !!!!!!!!
 
          if (fireline_mask < 0.) then
-            do j = jfts, jfte
-               do i = ifts, ifte
+            do j = jfds, jfde
+               do i = ifds, ifde
 
                   if ((lfn(i - 1, j - 1) > 0. .and. lfn(i - 1, j) > 0. .and. lfn(i, j - 1) > 0. .and. lfn(i, j) > 0. .and. &
                        lfn(i + 1, j + 1) > 0. .and. lfn(i + 1, j) > 0. .and. lfn(i, j + 1) > 0.) .or. &
@@ -413,7 +392,7 @@ contains
          !call flush (6)
          call fire_risk(fp, &
                         ifms, ifme, jfms, jfme, &
-                        ifts, ifte, jfts, jfte, &
+                        ifds, ifde, jfds, jfde, &
                         nfuel_cat, &
                         f_ros0, f_rosx, f_rosy, f_ros, &
                         f_int, f_lineint, f_lineint2)
@@ -426,34 +405,34 @@ contains
             write (msg, *) 'time_start=', time_start, ' dt=', dt, ' before fuel_left'
 !$OMP END CRITICAL(SFIRE_MODEL_CRIT)
             call message(msg)
-            call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, 'model: lfn')
-            call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, tign, 'model: tign')
-            call check_lfn_tign('before fuel_left', time_start + dt, ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, lfn, tign)
+            call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, 'model: lfn')
+            call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, tign, 'model: tign')
+            call check_lfn_tign('before fuel_left', time_start + dt, ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, lfn, tign)
 
-            call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fuel_time, 'model: fuel_time')
-            print *,'LFR-DBG: fire_update_fuel_frac=',fire_update_fuel_frac
+            call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fuel_time, 'model: fuel_time')
+         !   print *,'LFR-DBG: fire_update_fuel_frac=',fire_update_fuel_frac
             if (fire_update_fuel_frac .eq. 1) then
                !print *, "estou dentro ifun=6 na rotina sfire_model e vou entrar na fuel_left"
                !call flush (6)
                call fuel_left( &
                   ifds, ifde, jfds, jfde, &
                   ifms, ifme, jfms, jfme, &
-                  ifts, ifte, jfts, jfte, &
-                  ifts, ifte, jfts, jfte, &
+                  ifds, ifde, jfds, jfde, &
+                  ifds, ifde, jfds, jfde, &
                   lfn, tign, fuel_time, time_start + dt, fuel_frac_end, fire_area)
 
-               call print_2d_stats(ifts, ifte, jfts, jfte, ifts, ifte, jfts, jfte, fuel_frac_end, 'model: fuel_frac end')
+               call print_2d_stats(ifds, ifde, jfds, jfde, ifds, ifde, jfds, jfde, fuel_frac_end, 'model: fuel_frac end')
 
-               do j = jfts, jfte
-                  do i = ifts, ifte
+               do j = jfds, jfde
+                  do i = ifds, ifde
                      t = min(fuel_frac(i, j), fuel_frac_end(i, j))
                      fuel_frac_burnt(i, j) = fuel_frac(i, j) - t
                      fuel_frac(i, j) = t
                   end do
                end do
             elseif (fire_update_fuel_frac .eq. 2) then
-               do j = jfts, jfte
-                  do i = ifts, ifte
+               do j = jfds, jfde
+                  do i = ifds, ifde
                      if (lfn(i, j) < 0.) then
                         fuel_frac_burnt(i, j) = dt/fuel_time(i, j)
                      else
@@ -465,31 +444,45 @@ contains
                call crash('fire_update_fuel_frac value not supported')
             end if
 
-            call print_2d_stats(ifts, ifte, jfts, jfte, ifms, ifme, jfms, jfme, fuel_frac_burnt, 'model: fuel_frac burned')
+            call print_2d_stats(ifds, ifde, jfds, jfde, ifms, ifme, jfms, jfme, fuel_frac_burnt, 'model: fuel_frac burned')
             !print *, "estou dentro ifun=6 na rotina sfire_model e vou entrar na heat_fluxes"
             !call flush (6)
             call heat_fluxes(dt, fp, &
                              ifms, ifme, jfms, jfme, &
-                             ifts, ifte, jfts, jfte, &
-                             ifms, ifme, jfms, jfme, &
+                             ifds, ifde, jfds, jfde, &
                              fp%fgip, &
                              fuel_frac_burnt, &
                              fgrnhfx, fgrnqfx)
+
+
+               ! #### CALCULO FRP ISILDA CM
+               do j = jfds, jfde
+               do i = ifds, ifde
+               heat_Q=fire_atm_feedback*fgrnhfx(i,j)
+               FRP(i,j)=0.85*(5.67*(10.0**(-8.)))*fire_area(i,j)*(heat_Q/((fp%fgip(i,j)*fuel_frac_burnt(i,j))*1500.))**(4.)
+               enddo
+               enddo
+               ! #####
+
+
                !LFR-DBG beg
-               do j = jfts, jfte
-                  do i = ifts, ifte            
-                     WRITE(91,*) i,j,fp%fgip(i,j),fuel_frac_burnt(i,j),fgrnhfx(i,j),fgrnqfx(i,j)
+               do j = jfds, jfde
+                  do i = ifds, ifde            
+                     WRITE(91,*) i,j,fp%fgip(i,j),fuel_frac_burnt(i,j),fgrnhfx(i,j),fgrnqfx(i,j),FRP(i,j)
                   enddo
                enddo
                !LFR-DBG end
+
+
+
          case (1, 2)
 !$OMP CRITICAL(SFIRE_MODEL_CRIT)
             write (msg, *) "model: expecting fire_hfx to be set in WRF, from wrfinput or wrfrst files"
             call message(msg)
 !$OMP END CRITICAL(SFIRE_MODEL_CRIT)
 
-            do j = jfts, jfte
-               do i = ifts, ifte
+            do j = jfds, jfde
+               do i = ifds, ifde
                   fgrnhfx(i, j) = (1.-fire_hfx_latent_part)*fire_hfx(i, j)
                   fgrnqfx(i, j) = fire_hfx_latent_part*fire_hfx(i, j)
                end do
@@ -502,7 +495,7 @@ contains
             !call flush (6)
             call param_hfx(time_start, &
                            ifms, ifme, jfms, jfme, &
-                           ifts, ifte, jfts, jfte, &
+                           ifds, ifde, jfds, jfde, &
                            coord_xf, coord_yf, &
                            hfx, &
                            fire_area, fgrnhfx, fgrnqfx)
@@ -515,32 +508,22 @@ contains
             tfa = fun_real(REAL_SUM, &
                            ifms, ifme, 1, 1, jfms, jfme, &
                            ifds, ifde, 1, 1, jfds, jfde, &
-                           ifts, ifte, 1, 1, jfts, jfte, &
-                           0, 0, 0, &
                            fire_area, fire_area)*fdx*fdy
             thf = fun_real(REAL_SUM, &
                            ifms, ifme, 1, 1, jfms, jfme, &
                            ifds, ifde, 1, 1, jfds, jfde, &
-                           ifts, ifte, 1, 1, jfts, jfte, &
-                           0, 0, 0, &
                            fgrnhfx, fgrnhfx)*fdx*fdy
             mhf = fun_real(REAL_MAX, &
                            ifms, ifme, 1, 1, jfms, jfme, &
                            ifds, ifde, 1, 1, jfds, jfde, &
-                           ifts, ifte, 1, 1, jfts, jfte, &
-                           0, 0, 0, &
                            fgrnhfx, fgrnhfx)
             tqf = fun_real(REAL_SUM, &
                            ifms, ifme, 1, 1, jfms, jfme, &
                            ifds, ifde, 1, 1, jfds, jfde, &
-                           ifts, ifte, 1, 1, jfts, jfte, &
-                           0, 0, 0, &
                            fgrnqfx, fgrnqfx)*fdx*fdy
             mqf = fun_real(REAL_MAX, &
                            ifms, ifme, 1, 1, jfms, jfme, &
                            ifds, ifde, 1, 1, jfds, jfde, &
-                           ifts, ifte, 1, 1, jfts, jfte, &
-                           0, 0, 0, &
                            fgrnqfx, fgrnqfx)
 !$OMP MASTER
             write (msg, 91) time_start, 'Fire area           ', tfa, 'm^2'
@@ -557,7 +540,7 @@ contains
 91          format('Time ', f11.3, ' s ', a, e12.3, 1x, a)
          end if
 
-         call print_2d_stats(ifts, ifte, jfts, jfte, &
+         call print_2d_stats(ifds, ifde, jfds, jfde, &
                              ifms, ifme, jfms, jfme, &
                              fgrnhfx, 'model: heat flux(J/m^2/s)')
 
@@ -572,7 +555,7 @@ contains
 
    subroutine param_hfx(time_now, &
                         ifms, ifme, jfms, jfme, &
-                        ifts, ifte, jfts, jfte, &
+                        ifds, ifde, jfds, jfde, &
                         coord_xf, coord_yf, &
                         hfx, &
                         fire_area, fgrnhfx, fgrnqfx)
@@ -580,7 +563,7 @@ contains
       real, intent(in)::time_now
       integer, intent(in):: &
          ifms, ifme, jfms, jfme, &
-         ifts, ifte, jfts, jfte
+         ifds, ifde, jfds, jfde
       type(lines_type), intent(in)::hfx
       real, dimension(ifms:ifme, jfms:jfme), intent(in)::coord_xf, coord_yf
       real, dimension(ifms:ifme, jfms:jfme), intent(out)::fire_area, fgrnhfx, fgrnqfx
@@ -591,8 +574,8 @@ contains
       real, parameter:: sigma_mult = 3.
       real:: maxspeed = 100
 
-      do j = jfts, jfte
-         do i = ifts, ifte
+      do j = jfds, jfde
+         do i = ifds, ifde
             fire_area(i, j) = 0
             fgrnhfx(i, j) = 0.
             fgrnqfx(i, j) = 0.
@@ -634,8 +617,8 @@ contains
 
             nfa = 0
             ncells = 0
-            do j = jfts, jfte
-               do i = ifts, ifte
+            do j = jfds, jfde
+               do i = ifds, ifde
 
                   d2 = (hfx%unit_fxlong*(ax - coord_xf(i, j)))**2 + (hfx%unit_fxlat*(ay - coord_yf(i, j)))**2
                   if (d2 < radius**2) then

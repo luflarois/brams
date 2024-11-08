@@ -49,6 +49,8 @@ module modSfire2Brams
     integer :: npx, npy
     real, dimension(:), allocatable :: lat, lon
     character(len=256) :: vegFile
+    logical :: test_only
+    real :: time_2_test
 
     integer, parameter :: catb(17) = (/&
           1, 1, 1, 1                   & !floresta: 1 a 4
@@ -136,7 +138,8 @@ module modSfire2Brams
       public :: readModisVeg, get_emission_in_global_brams_grid, nspecies_sfire &
                 , sfire_species_name, sfire_info_area, sfire_info_time, sfire_info_frp, sfire_info_lat &
                 , sfire_info_lon, flam_frac, mean_frp, std_frp, mean_size, std_size, qsc,count_in_grid &
-                , alloc_dealloc_sfire_info, valid_ij, comm_aer_data, testModSfire2Brams
+                , alloc_dealloc_sfire_info, valid_ij, comm_aer_data, testModSfire2Brams, test_only &
+                , fill_sfire_info_and_get_emissions
 
 contains
 
@@ -521,7 +524,7 @@ contains
         real :: factArea, qarea
         logical :: ex
 
-        namelist /VEG/ vegFile
+        namelist /VEG/ vegFile, test_only, time_2_test
 
         do i=1,nveg
             fc(i)             = queiparms(1,i)        ! fracao de biomassa queimada
@@ -573,7 +576,7 @@ contains
             print *, "Please, check sintax!"
             stop   
         else
-            print *,"Modis Veg File is ", vegFile
+            print *,"Modis Veg File is ", vegFile, " ", test_only, " ", time_2_test
         end if
         
 
@@ -892,7 +895,7 @@ contains
       
       end subroutine copy_buff2D
     
-      subroutine testModSfire2Brams(glat,glon,dn0)
+      subroutine testModSfire2Brams(glat,glon,dn0,time)
         !Simula um caso de focos de fogo ativos
         !Lê uma tabela contendo as informações abaixo:
         !
@@ -915,11 +918,14 @@ contains
         real, intent(in) :: dn0(:,:,:)
         real, intent(in) :: glat(:,:)
         real, intent(in) :: glon(:,:)
+        real, intent(in) :: time
 
         character(len=256) :: lixo
         integer :: nfocos
         integer :: k
         logical :: ok
+
+        if (time /= time_2_test) return 
 
         !Le uma tabela de focos de fogo simulando uma condição real
         open(unit=22,file="tabela_focos.txt",status="old",action="read")
@@ -943,5 +949,57 @@ contains
         ok = alloc_dealloc_sfire_info()
 
     end subroutine testModSfire2Brams
+
+    subroutine fill_sfire_info_and_get_emissions(ifds,ifde,jfds,jfde,frp,fire_area,latf,lonf,tburn,glat,glon,dn0)
+        implicit none
+
+        integer, intent(in) :: ifde,ifds,jfds,jfde
+        real, intent(in) :: frp(:,:)
+        real, intent(in) :: fire_area(:,:)
+        real, intent(in) :: latf(:,:)
+        real, intent(in) :: lonf(:,:)
+        real, intent(in) :: tburn(:,:)
+        real, intent(in) :: dn0(:,:,:)
+        real, intent(in) :: glat(:,:)
+        real, intent(in) :: glon(:,:)
+        
+        integer :: i, j, ifoc, isize, jsize, k
+        integer, allocatable :: ival(:), jval(:)
+        logical :: ok
+
+        isize = size(latf,1)
+        jsize = size(latf,2)
+        allocate(ival(isize),jval(jsize))
+
+        !Determinando focos válidos
+        ifoc = 0
+        do j = jfds, ifde
+            do i = ifde ,ifds
+                if(frp(i,j)>0.0 .and. fire_area(i,j)>0.0) then
+                    ifoc = ifoc+1
+                    ival(ifoc) = i
+                    jval(ifoc) = j
+                end if
+            end do
+        end do
+
+        ok = alloc_dealloc_sfire_info(ifoc)
+        !Percorrendo focos válidos e preenchendo sfire_info
+        do i = k ,ifoc
+            sfire_info_lat (k) = latf(ival(k),jval(k))
+            sfire_info_lon (k) = lonf(ival(k),jval(k))
+            sfire_info_frp (k) = frp(ival(k),jval(k))
+            sfire_info_area(k) = fire_area(ival(k),jval(k))
+            sfire_info_time(k) = tburn(ival(k),jval(k))
+        end do        
+        
+        !Chama a rotina que calcula as emissões segundo os dados vindos de sfire
+        !A  rotina calcula as emissões e estatísticas - Deve estar dentro do nó mestre
+        call get_emission_in_global_brams_grid(glat,glon,dn0)
+
+        !Dealoca os arrays sem uso
+        ok = alloc_dealloc_sfire_info()
+
+    end subroutine fill_sfire_info_and_get_emissions
 
 end module modSfire2Brams

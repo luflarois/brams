@@ -94,6 +94,8 @@ CONTAINS
     ALLOCATE(sfire%fgrnqfx(ifms:ifme, jfms:jfme))
     ALLOCATE(sfire%fcanhfx(ifms:ifme, jfms:jfme))
     ALLOCATE(sfire%fcanqfx(ifms:ifme, jfms:jfme))
+    ALLOCATE(sfire%FRP(ifms:ifme, jfms:jfme)) !INTRODUZIDO POR ISILDA CM
+    ALLOCATE(sfire%tburn(ifms:ifme, jfms:jfme)) !Introduzido por Luiz Flávio
     ALLOCATE(sfire%ros(ifms:ifme,jfms:jfme))
     ALLOCATE(sfire%flineint(ifms:ifme,jfms:jfme))
     ALLOCATE(sfire%flineint2(ifms:ifme,jfms:jfme))
@@ -193,6 +195,7 @@ CONTAINS
     IF (ASSOCIATED(sfire%fgrnqfx))  NULLIFY (sfire%fgrnqfx)
     IF (ASSOCIATED(sfire%fcanhfx))  NULLIFY (sfire%fcanhfx)
     IF (ASSOCIATED(sfire%fcanqfx))  NULLIFY (sfire%fcanqfx)
+    IF (ASSOCIATED(sfire%FRP))  NULLIFY (sfire%FRP) !INTRODUZIDO POR ISILDA CM
     IF (ASSOCIATED(sfire%ros))  NULLIFY (sfire%ros)
     IF (ASSOCIATED(sfire%flineint))  NULLIFY (sfire%flineint)
     IF (ASSOCIATED(sfire%flineint2))  NULLIFY (sfire%flineint2)
@@ -290,6 +293,7 @@ CONTAINS
     IF (ASSOCIATED(sfire%fgrnqfx))  DEALLOCATE (sfire%fgrnqfx)
     IF (ASSOCIATED(sfire%fcanhfx))  DEALLOCATE (sfire%fcanhfx)
     IF (ASSOCIATED(sfire%fcanqfx))  DEALLOCATE (sfire%fcanqfx)
+    IF (ASSOCIATED(sfire%FRP))  DEALLOCATE (sfire%FRP) !INTRODUZIDO POR ISILDA CM
     IF (ASSOCIATED(sfire%ros))  DEALLOCATE (sfire%ros)
     IF (ASSOCIATED(sfire%flineint))  DEALLOCATE (sfire%flineint)
     IF (ASSOCIATED(sfire%flineint2)) DEALLOCATE  (sfire%flineint2)
@@ -345,7 +349,7 @@ CONTAINS
     sfire%dzdxf(:,:)= 0.
     sfire%dzdyf(:,:)= 0.
     sfire%fmc_g(:,:)= 0.
-    sfire%nfuel_cat(:,:)= 0.
+    sfire%nfuel_cat(:,:)= 14.
     sfire%fuel_time(:,:) = 0.
     sfire%fuel_frac_burnt(:,:)= 0.
     sfire%uf(:,:)= 0.
@@ -369,6 +373,7 @@ CONTAINS
     sfire%fgrnqfx(:, :)= 0.
     sfire%fcanhfx(:, :)= 0.
     sfire%fcanqfx(:, :)= 0.
+    sfire%FRP(:, :)= 0. !INTRODUZIDO POR ISILDA CM
     sfire%ros(:,:)= 0.
     sfire%flineint(:,:)= 0.
     sfire%flineint2(:,:)= 0.
