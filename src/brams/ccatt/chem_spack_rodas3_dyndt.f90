@@ -182,59 +182,110 @@ contains
       integer(kind=8), external :: sfGetElement
       integer, external :: sfFactor
       character(len=24) :: fileName ! chem_in_xxxxxx.bin
-      integer :: iunit
+      integer :: iunit, sc_t_size, sc_t_DynSiz
 
       !---------------------------------------------------------
       !Introdução da escrita dos parâmetros de entrada e saída
       !---------------------------------------------------------
       ! criar o arquivo de dados
       write (filename, fmt='("chem_inp_",I6.6,"-",I4.4,".bin")') int(time),mynum
-      open (newunit=iunit, file="filename", status="replace", access="stream", action="write")
+      open (newunit=iunit, file=filename, status="replace", form="unformatted", action="write")
 
-      write(iunit,*)  m1
-      write(iunit,*)  m2
-      write(iunit,*)  m3
-      write(iunit,*)  nspecies
-      write(iunit,*)  nr_photo
-      write(iunit,*)  nr
-      write(iunit,*)  maxnspecies
-      write(iunit,*)  nspecies_chem_transported
-      write(iunit,*)  nspecies_chem_no_transported
-      write(iunit,*)  nob
-      write(iunit,*)  maxblock_size
-      write(iunit,*)  na_extra3d
-      write(iunit,*)  dtlt
-      write(iunit,*)  pp  !(m1, m2, m3)
-      write(iunit,*)  pi0 !(m1, m2, m3)
-      write(iunit,*)  theta !(m1, m2, m3)
-      write(iunit,*)  rv !(m1, m2, m3)
-      write(iunit,*)  dn0 !(m1, m2, m3)
-      write(iunit,*)  cosz !(m2, m3)
-      write(iunit,*)  rcp !(m1, m2, m3)
-      write(iunit,*)  weight !(nspecies)
-      write(iunit,*)  PhotojMethod
-      write(iunit,*)  transp_chem_index !(maxnspecies)
-      write(iunit,*)  no_transp_chem_index !(maxnspecies)
-      write(iunit,*)  split_method
-      write(iunit,*)  N_DYN_CHEM
-      write(iunit,*)  block_end!(:)nob
-      write(iunit,*)  indexk!(:, :)(maxblock_size,nob)
-      write(iunit,*)  indexi!(:, :)(maxblock_size,nob)
-      write(iunit,*)  indexj!(:, :)(maxblock_size,nob)
-      write(iunit,*)  kij_index!(:, :)(maxblock_size,nob)
-      write(iunit,*)  atol !(nspecies)
-      write(iunit,*)  rtol !(nspecies)
-      write(iunit,*)  cp
-      write(iunit,*)  cpor
-      write(iunit,*)  p00
-      write(iunit,*)  jphoto !(nr_photo, m1, m2, m3)
-      write(iunit,*)  att !(m2, m3)
-      write(iunit,*)  chem1_g !(nspecies) !IO
-      write(iunit,*)  spack !(1) !IO
-      write(iunit,*)  spack_2d !(:, :) !IO
-      write(iunit,*)  last_accepted_dt !(:) !IO !(nob)
-      write(iunit,*)  get_non_zeros !IO
-      write(iunit,*)  extra3d !(na_extra3d) ! Output JNO2 !IO
+      write(iunit)  m1
+      write(iunit)  m2
+      write(iunit)  m3
+      write(iunit)  nspecies
+      write(iunit)  nr_photo
+      write(iunit)  nr
+      write(iunit)  maxnspecies
+      write(iunit)  nspecies_chem_transported
+      write(iunit)  nspecies_chem_no_transported
+      write(iunit)  nob
+      write(iunit)  maxblock_size
+      write(iunit)  na_extra3d
+      write(60+mynum,*) mynum," - na_extra3d: ",na_extra3d
+      do ispc=1,nspecies
+        sc_t_size   = size(chem1_g(ispc)%sc_t)
+        sc_t_DynSiz = size(chem1_g(ispc)%sc_t_dyn)
+        write(iunit)  sc_t_size  
+        write(iunit)  sc_t_DynSiz
+      end do
+      write(iunit)  dtlt
+      write(iunit)  pp  !(m1, m2, m3)
+      write(iunit)  pi0 !(m1, m2, m3)
+      write(iunit)  theta !(m1, m2, m3)
+      write(iunit)  rv !(m1, m2, m3)
+      write(iunit)  dn0 !(m1, m2, m3)
+      write(iunit)  cosz !(m2, m3)
+      write(iunit)  rcp !(m1, m2, m3)
+      write(iunit)  weight !(nspecies)
+      write(iunit)  PhotojMethod
+      write(iunit)  transp_chem_index !(maxnspecies)
+      write(iunit)  no_transp_chem_index !(maxnspecies)
+      write(iunit)  split_method
+      write(iunit)  N_DYN_CHEM
+      write(iunit)  block_end!(:)nob
+      write(iunit)  indexk!(:, :)(maxblock_size,nob)
+      write(iunit)  indexi!(:, :)(maxblock_size,nob)
+      write(iunit)  indexj!(:, :)(maxblock_size,nob)
+      write(iunit)  kij_index!(:, :)(maxblock_size,nob)
+      write(iunit)  atol !(nspecies)
+      write(iunit)  rtol !(nspecies)
+      write(iunit)  cp
+      write(iunit)  cpor
+      write(iunit)  p00
+      write(iunit)  jphoto !(nr_photo, m1, m2, m3)
+      write(iunit)  att !(m2, m3)
+      !!!!
+      print *,mynum,nspecies,sc_t_size,sc_t_DynSiz
+      do ispc=1,nspecies
+        write(iunit)  chem1_g(ispc)%sc_p
+        !write(iunit,*)  chem1_g(ispc)%sc_pp
+        !write(iunit,*)  chem1_g(ispc)%sc_pf
+        !write(iunit,*)  chem1_g(ispc)%sc_dd
+        !write(iunit,*)  chem1_g(ispc)%sc_wd
+        write(iunit)  chem1_g(ispc)%sc_t
+        write(iunit)  chem1_g(ispc)%sc_t_dyn
+        !print *,mynum,ispc,size(chem1_g(ispc)%sc_t),size(chem1_g(ispc)%sc_t_dyn)
+      end do
+      write(iunit)  spack(1)%DLdrdc
+      write(iunit)  spack(1)%sc_p_new
+      !write(iunit,*)  spack(1)%sc_p_4
+      write(iunit)  spack(1)%DLr	 
+      !write(iunit,*)  spack(1)%DLr3	 
+      write(iunit)  spack(1)%jphoto 
+      write(iunit)  spack(1)%rk    
+      write(iunit)  spack(1)%w    
+      write(iunit)  spack(1)%sc_p
+      write(iunit)  spack(1)%temp	
+      write(iunit)  spack(1)%press 
+      write(iunit)  spack(1)%cosz	  
+      write(iunit)  spack(1)%att	  
+      write(iunit)  spack(1)%vapp 
+      write(iunit)  spack(1)%volmol 
+      write(iunit)  spack(1)%volmol_i 
+      write(iunit)  spack(1)%xlw 
+      write(iunit)  spack(1)%err    
+      write(60+mynum,*) mynum," - spack_2d: size",size(spack_2d,1),size(spack_2d,2)
+      do i = 1, nob
+        do ijk = 1, block_end(i)
+            write(60+mynum,*) "i, ijk, size(DLmat): ",i,ijk,size(spack_2d(ijk,inob)%DLmat,1),size(spack_2d(ijk,inob)%DLmat,2)
+            write(iunit)  spack_2d(ijk,inob)%DLmat 
+            write(iunit)  spack_2d(ijk,inob)%DLb1	
+            write(iunit)  spack_2d(ijk,inob)%DLb2	
+            write(iunit)  spack_2d(ijk,inob)%DLb3	
+            write(iunit)  spack_2d(ijk,inob)%DLb4	
+            write(iunit)  spack_2d(ijk,inob)%DLk1  
+            write(iunit)  spack_2d(ijk,inob)%DLk2  
+            write(iunit)  spack_2d(ijk,inob)%DLk3  
+            write(iunit)  spack_2d(ijk,inob)%DLk4 
+        end do
+      end do 
+      write(iunit)  last_accepted_dt !(:) !IO !(nob)
+      write(iunit)  get_non_zeros !IO
+      do i=1,na_extra3d
+        write(iunit)  extra3d(i)%d3 !(na_extra3d) ! Output JNO2 !IO
+      end do
 
       close(iunit)
 
@@ -831,13 +882,53 @@ contains
 
 
       write (filename, fmt='("chem_out_",I6.6,"-",I4.4,".bin")') int(time),mynum
-      open (newunit=iunit, file=filename, status="replace", access="stream", action="write")
-      write(iunit,*)  chem1_g !(nspecies) !IO
-      write(iunit,*)  spack !(1) !IO
-      write(iunit,*)  spack_2d !(:, :) !IO
-      write(iunit,*)  last_accepted_dt !(:) !IO !(nob)
-      write(iunit,*)  get_non_zeros !IO
-      write(iunit,*)  extra3d !(na_extra3d) ! Output JNO2 !IO
+      open (newunit=iunit, file=filename, status="replace", form="unformatted", action="write")
+      do ispc=1,nspecies
+        write(iunit)  chem1_g(ispc)%sc_p
+        !write(iunit,*)  chem1_g(ispc)%sc_pp
+        !write(iunit,*)  chem1_g(ispc)%sc_pf
+        !write(iunit,*)  chem1_g(ispc)%sc_dd
+        !write(iunit,*)  chem1_g(ispc)%sc_wd
+        write(iunit)  chem1_g(ispc)%sc_t
+        write(iunit)  chem1_g(ispc)%sc_t_dyn
+      end do
+      write(iunit)  spack(1)%DLdrdc
+      write(iunit)  spack(1)%sc_p_new
+      !write(iunit,*)  spack(1)%sc_p_4
+      write(iunit)  spack(1)%DLr	 
+      !write(iunit,*)  spack(1)%DLr3	  
+      write(iunit)  spack(1)%jphoto 
+      write(iunit)  spack(1)%rk    
+      write(iunit)  spack(1)%w    
+      write(iunit)  spack(1)%sc_p
+      write(iunit)  spack(1)%temp	
+      write(iunit)  spack(1)%press 
+      write(iunit)  spack(1)%cosz	  
+      write(iunit)  spack(1)%att	  
+      write(iunit)  spack(1)%vapp 
+      write(iunit)  spack(1)%volmol 
+      write(iunit)  spack(1)%volmol_i 
+      write(iunit)  spack(1)%xlw 
+      write(iunit)  spack(1)%err    
+      do i = 1, nob
+        do ijk = 1, block_end(i)
+            write(iunit)  spack_2d(ijk,inob)%DLmat 
+            write(iunit)  spack_2d(ijk,inob)%DLb1	
+            write(iunit)  spack_2d(ijk,inob)%DLb2	
+            write(iunit)  spack_2d(ijk,inob)%DLb3	
+            write(iunit)  spack_2d(ijk,inob)%DLb4	
+            write(iunit)  spack_2d(ijk,inob)%DLk1  
+            write(iunit)  spack_2d(ijk,inob)%DLk2  
+            write(iunit)  spack_2d(ijk,inob)%DLk3  
+            write(iunit)  spack_2d(ijk,inob)%DLk4 
+        end do
+      end do 
+      write(iunit)  last_accepted_dt !(:) !IO !(nob)
+      write(iunit)  get_non_zeros !IO
+      do i=1,na_extra3d
+        write(iunit)  extra3d(i)%d3 !(na_extra3d) ! Output JNO2 !IO
+      end do
+
       close(iunit)
 
 
