@@ -120,6 +120,8 @@ module dump
   public :: dumpMessage, emptyLine, logical2Int,openLogFile, debug,l2int
 
   logical, parameter :: showInColor=.true.
+  integer :: ierr
+  include 'mpif.h'
 
 contains
 
@@ -269,7 +271,6 @@ contains
     character(len=*), intent(in) :: message
     !# message text to print
 
-
     select case(dumpType)
     case(c_noError)
       write(tty,fmt='(A)') header//' '//version//' '//message
@@ -303,6 +304,7 @@ else
 endif
 
       print *,c_empty
+      call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
       stop
     end select
 
@@ -368,6 +370,7 @@ endif
       write(tty,fmt='(A)') c_blink//'Fatal Error! See the message above!'&
                          //c_noColor
       print *,c_empty
+      call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
       stop
     end select
 
@@ -433,6 +436,7 @@ endif
       write(tty,fmt='(A)') c_blink//'Fatal Error! See the message above!'&
                          //c_noColor
       print *,c_empty
+      call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
       stop
     end select
 
@@ -601,6 +605,7 @@ endif
       write(tty,fmt='(A)') c_blink//'Fatal Error! See the message above!'&
                          //c_noColor
       print *,c_empty
+      call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
       stop
     end select
 
@@ -664,7 +669,7 @@ if (showInColor) then
 else
         write(tty,fmt='(A)') 'Fatal!!! '//header//' '//version//' '//message
 endif
-
+  call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
     end select
     !
 if (showInColor) then
@@ -750,7 +755,7 @@ if (showInColor) then
 else
         write(tty,fmt='(A)') 'Fatal!!! '//header//' '//version//' '//message
 endif
-
+  call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
     end select
     !
 if (showInColor) then
@@ -838,7 +843,7 @@ if (showInColor) then
 else
         write(tty,fmt='(A)') 'Fatal!!! '//header//' '//version//' '//message
 endif
-
+  call MPI_Abort(MPI_COMM_WORLD, ierr, ierr)
     end select
     !
     do iCount=1,size(value,2)
