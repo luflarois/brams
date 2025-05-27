@@ -60,6 +60,7 @@ MODULE module_wind_fitch
   INTEGER, DIMENSION(:,:), ALLOCATABLE :: ival,jval
   real, DIMENSION(:), ALLOCATABLE :: lat,lon
   character(len=32), ALLOCATABLE, dimension(:) :: wfname
+  character(len=3), ALLOCATABLE, dimension(:) :: turbine_id
 
 
   REAL, DIMENSION(:), ALLOCATABLE :: hubheight,diameter,stc,stc2,cutin,cutout,npower
@@ -421,22 +422,23 @@ CONTAINS
        allocate (hubheight(nt),stc(nt),stc2(nt),cutin(nt),cutout(nt),diameter(nt),npower(nt))
        allocate (lat(nt),lon(nt))
        allocate (wfname(nt))
+       allocate (turbine_id(nt))
        windfarm_initialized=.true.
      endif
 
     !Readind position of all turbines
     if (mynum==master_num) then
      write (*,fmt='(A)') ' --- Windturbine information --- '
-     write (*,fmt='(A3,1X,2(A6,1X),A2,1X,A)') &
-	'#tn','lat','lon','Ty','File Name'
+     write (*,fmt='(A3,1X,2(A6,1X),A4,1X,A,1X,A)') &
+	'#tn','lat','lon','Type','File Name','Turbine ID'
 
      do k=1,nt
        if ( windfarm_ij .eq. 1 ) then
          !read(70,*) ival(k,id), jval(k,id), nkind(k)
          stop 'No prepared for i,j turbines position'
        else
-         read(70,*)lat(k),lon(k),nkind(k),wfname(k)
-	 write (*,fmt='(I3.3,1X,2(F6.2,1X),I2.2,1X,A)') k,lat(k),lon(k),nkind(k),wfname(k)
+         read(70,*)lat(k),lon(k),nkind(k),wfname(k),turbine_id(k)
+	       write (*,fmt='(I3.3,1X,2(F8.2,1X),I4.4,1X,A,1X,A,1X,A)') k,lat(k),lon(k),nkind(k),wfname(k),turbine_id(k)
        endif
       enddo
       close(70)
@@ -448,15 +450,17 @@ CONTAINS
     CALL MPI_BCAST(nkind,nt, MPI_INTEGER, master_num, MPI_COMM_WORLD, ierr)
     DO k=1,nt
       call MPI_BCAST(wfname(k),32, MPI_CHARACTER, master_num, MPI_COMM_WORLD, ierr)
+      call MPI_BCAST(turbine_id(k),3, MPI_CHARACTER, master_num, MPI_COMM_WORLD, ierr)
     enddo
 
     !Searching for position in x,y in local processor
     do k=1,nt
         call LatLon2xy(lat(k),lon(k),xlat,xlong,ival(k,ngrid),jval(k,ngrid),m2,m3,ia,iz,ja,jz,mynum)
+
 !         if(ival(k,ngrid)>0 .and. jval(k,ngrid)>0) &
-!         write (*,fmt='(A,I3.3,A,F6.2,A,F6.2,A,I4,A,I4,A,I1)') &
-! 	"WINDFARM Turbine #",k," | Lat,Lon =",lat(k),",",lon(k)," | (i,j) = (",ival(k,ngrid),",",jval(k,ngrid),"), | Type = ",nkind(k)
-! 	call flush(6)
+         !write (*,fmt='(A,I3.3,A,F6.2,A,F6.2,A,I4,A,I4,A,I1)') &
+ 	!"WINDFARM Turbine #",k," | Lat,Lon =",lat(k),",",lon(k)," | (i,j) = (",ival(k,ngrid),",",jval(k,ngrid),"), | Type = ",nkind(k)
+ 	call flush(6)
     end do
 
     if (mynum==master_num) then

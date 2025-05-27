@@ -387,6 +387,7 @@ module ModNamelistFile
      real               :: gnu(ncat_dummy)
      integer 		:: windfarm
      character(len=f_name_length) :: wfFile
+     integer :: timeInterval_wf
      integer :: damModule
      real :: frqPrecip
      character(len=256) :: damOutPrefix
@@ -703,6 +704,7 @@ contains
     integer :: mech
     integer :: windfarm
     character(len=f_name_length) :: wfFile
+    integer :: timeInterval_wf
     integer :: damModule
     real :: frqPrecip
     character(len=256) :: damOutPrefix
@@ -1043,7 +1045,7 @@ contains
          xkhkm, zkhkm, akmin, idriz, icloud, irain, &
          ipris, isnow, iaggr, igraup, ihail,irime, iplaws,iccnlev,      &
          cparm, rparm, pparm, sparm, aparm, gparm, hparm,  dparm,cnparm,&
-         epsil,gnparm,gnu,windfarm,wfFile,damModule,frqPrecip,          &
+         epsil,gnparm,gnu,windfarm,wfFile,timeInterval_wf,damModule,frqPrecip,          &
          damOutPrefix,evaluate,evaluatePrefix
 
 
@@ -1496,6 +1498,7 @@ contains
     ghostzonelength     = 1
     windfarm = 0
     wfFile = ''
+    timeInterval_wf = 3600
     damModule = 0
     frqPrecip = 3600.
     damOutPrefix = './damOutput'
@@ -1599,6 +1602,7 @@ contains
     gnu(1:8)	      = (/2.,2.,2.,2.,2.,2.,2.,2./)
     windfarm          = 0
     wfFile           = ''
+    timeInterval_wf =  3600
     damModule        = 0
     frqPrecip = 3600.
     damOutPrefix = './damOutput'
@@ -2486,6 +2490,7 @@ contains
        write (*, *) "gnu=",gnu
        write (*, *) "windfarm=",windfarm
        write (*, *) "wfFile=",wfFile
+       write (*, *) "timeInterval_wf=",timeInterval_wf
        write (*, *) "damModule=",damModule
        write (*, *) "frqPrecip=",frqPrecip
        write (*, *) "damOutPrefix=",damOutPrefix
@@ -2567,6 +2572,7 @@ contains
        oneNamelistFile%gnu=gnu
        oneNamelistFile%windfarm=windfarm
        oneNamelistFile%wfFile=wfFile
+       oneNamelistFile%timeInterval_wf = timeInterval_wf
        oneNamelistFile%damModule=damModule
        oneNamelistFile%frqPrecip=frqPrecip
        oneNamelistFile%damOutPrefix=damOutPrefix
@@ -4354,6 +4360,10 @@ contains
     call parf_bcast(oneNamelistFile%wffile,&
          int(len(oneNamelistFile%wffile),i8),&
          oneParallelEnvironment%master_num)
+
+     call parf_bcast(oneNamelistFile%timeInterval_wf,&
+         oneParallelEnvironment%master_num)
+
     call parf_bcast(oneNamelistFile%damModule,&
          oneParallelEnvironment%master_num)
     call parf_bcast(oneNamelistFile%frqPrecip,&
