@@ -27,6 +27,12 @@ MODULE mod_chem_spack_rodas3_dyndt
        fexchem           ! Subroutine
 
 
+  use node_mod, only:  &
+       mynum
+
+  use mem_grid, only: &
+       grid_g
+
   IMPLICIT NONE
 
   PRIVATE
@@ -185,9 +191,18 @@ use mem_grid, only: time
   INTEGER(kind=8), EXTERNAL :: sfGetElement
   INTEGER, EXTERNAL :: sfFactor
 
+  integer :: processor
+ 
+  processor = mynum
 
 
-
+  call write_input(time, processor, m1, m2, m3, nspecies, nr, nr_photo, maxnspecies, &
+                      nspecies_chem_transported, nspecies_chem_no_transported, &
+                      nob, maxblock_size, na_extra3d, dtlt, pp, pi0, theta , rv, dn0, rcp, &
+                      cosz, weight, atol, rtol, jphoto, att, block_end, indexk, indexi, &
+                      indexj, kij_index, transp_chem_index, no_transp_chem_index, &
+                      extra3d, spack, spack_2d, last_accepted_dt, get_non_zeros, chem1_g, &
+                      cp, cpor, n_dyn_chem, p00, PhotojMethod, split_method)
 
 
 
@@ -799,6 +814,8 @@ use mem_grid, only: time
 
  END DO ! enddo loop over all blocks
 
+call write_output(time, m1, m2, m3, processor, chem1_g, nspecies)
+
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 !DO n=1,nspecies
 !print*,'max1=',spc_name(n),maxval(chem1_g(n)%sc_p(:,:,:)),maxloc(chem1_g(n)%sc_p(:,:,:))
@@ -808,6 +825,231 @@ use mem_grid, only: time
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 END SUBROUTINE chem_rodas3_dyndt
+
+subroutine write_input(time, processor, m1, m2, m3, nspecies, nr, nr_photo, maxnspecies, &
+                      nspecies_chem_transported, nspecies_chem_no_transported, &
+                      nob, maxblock_size, na_extra3d, dtlt, pp, pi0, theta , rv, dn0, rcp, &
+                      cosz, weight, atol, rtol, jphoto, att, block_end, indexk, indexi, &
+                      indexj, kij_index, transp_chem_index, no_transp_chem_index, &
+                      extra3d, spack, spack_2d, last_accepted_dt, get_non_zeros, chem1_g, &
+                      cp, cpor, n_dyn_chem, p00, PhotojMethod, split_method)
+    
+        integer, intent(in) :: processor 
+        integer, intent(in) :: m1, m2, m3
+        integer, intent(in) :: nspecies, nr, nr_photo, maxnspecies
+        integer, intent(in) :: nspecies_chem_transported, nspecies_chem_no_transported
+        integer, intent(in) :: nob, maxblock_size, na_extra3d, n_dyn_chem
+
+        integer, intent(in) :: block_end(nob)
+        integer, intent(in) :: indexk(maxblock_size,nob)
+        integer, intent(in) :: indexi(maxblock_size,nob)
+        integer, intent(in) :: indexj(maxblock_size,nob)
+        integer, intent(in) :: kij_index(maxblock_size,nob)
+        integer, intent(in) :: transp_chem_index(maxnspecies)
+        integer, intent(in) :: no_transp_chem_index(maxnspecies)
+
+        real, intent(in)    :: time
+        real, intent(in) :: dtlt
+        real, intent(in) :: cp, cpor, p00
+        real, intent(in) :: pp    (m1,m2,m3)
+        real, intent(in) :: pi0   (m1,m2,m3)
+        real, intent(in) :: theta (m1,m2,m3)
+        real, intent(in) :: rv    (m1,m2,m3)
+        real, intent(in) :: dn0   (m1,m2,m3)
+        real, intent(in) :: rcp   (m1,m2,m3)
+        real, intent(in) :: cosz  (m2,m3)
+        real, intent(in) :: weight(nspecies)
+        real, intent(in) :: att(m2, m3)
+
+        double precision, intent(in) :: last_accepted_dt(:)
+        double precision, intent(in) :: atol(nspecies)
+        double precision, intent(in) :: rtol(nspecies)
+        double precision, intent(in) :: jphoto(nr_photo,m1,m2,m3)
+
+        logical , intent(inout) :: get_non_zeros
+        character(len=10), intent(in) :: PhotojMethod
+        character(len=20), intent(in) :: split_method
+
+        type (chem1_vars), intent(inout) :: chem1_g(nspecies)
+        type(ext3d), intent(inout) :: extra3d(na_extra3d)
+        type(spack_type)   , intent(inout) :: spack(1)
+        type(spack_type_2d), intent(inout) :: spack_2d(:,:)
+
+        character(len=24) :: fileName
+        integer :: iunit, ispc, i, ii, ijk
+
+        write(filename, fmt='("chem_inp_",I6.6,"-",I4.4,".bin")') int(time),processor
+        print *,"File to write: ",filename
+        open (newunit=iunit, file=filename, status="replace", form="unformatted", action="write")    
+        write(iunit)  m1
+        write(iunit)  m2
+        write(iunit)  m3
+
+        write(iunit)  nspecies
+        write(iunit)  nr_photo
+        write(iunit)  nr
+        write(iunit)  maxnspecies
+        write(iunit)  nspecies_chem_transported
+        write(iunit)  nspecies_chem_no_transported
+        write(iunit)  nob
+        write(iunit)  maxblock_size
+        write(iunit)  na_extra3d
+
+        do ispc=1,nspecies
+            write(iunit) size(chem1_g(ispc)%sc_t)
+            write(iunit) size(chem1_g(ispc)%sc_t_dyn)
+        end do
+
+        write(iunit) grid_g(1)%glat
+        write(iunit) grid_g(1)%glon
+
+        write(iunit)  dtlt
+        write(iunit)  pp  
+        write(iunit)  pi0 
+        write(iunit)  theta 
+        write(iunit)  rv 
+        write(iunit)  dn0 
+        write(iunit)  cosz
+        write(iunit)  rcp
+        write(iunit)  weight 
+        write(iunit)  PhotojMethod
+        write(iunit)  transp_chem_index
+        write(iunit)  no_transp_chem_index 
+        write(iunit)  split_method
+        write(iunit)  n_dyn_chem
+        write(iunit)  block_end
+        write(iunit)  indexk
+        write(iunit)  indexi
+        write(iunit)  indexj
+        write(iunit)  kij_index
+        write(iunit)  atol
+        write(iunit)  rtol
+        write(iunit)  cp
+        write(iunit)  cpor
+        write(iunit)  p00
+        write(iunit)  jphoto
+        write(iunit)  att
+        !    
+        do ispc=1,nspecies
+             write(iunit)  chem1_g(ispc)%sc_p
+             write(iunit)  chem1_g(ispc)%sc_t
+             write(iunit)  chem1_g(ispc)%sc_t_dyn
+        end do
+        
+        write(iunit)  spack(1)%DLdrdc
+        write(iunit)  spack(1)%sc_p_new
+        write(iunit)  spack(1)%DLr	 	 
+        write(iunit)  spack(1)%jphoto 
+        write(iunit)  spack(1)%rk    
+        write(iunit)  spack(1)%w    
+        write(iunit)  spack(1)%sc_p
+        write(iunit)  spack(1)%temp	
+        write(iunit)  spack(1)%press 
+        write(iunit)  spack(1)%cosz	  
+        write(iunit)  spack(1)%att	  
+        write(iunit)  spack(1)%vapp 
+        write(iunit)  spack(1)%volmol 
+        write(iunit)  spack(1)%volmol_i 
+        write(iunit)  spack(1)%xlw 
+        write(iunit)  spack(1)%err  
+
+        do i = 1, 1
+            do ijk = 1, maxblock_size
+                write(iunit)  spack_2d(ijk,i)%DLmat 
+                write(iunit)  spack_2d(ijk,i)%DLb1	
+                write(iunit)  spack_2d(ijk,i)%DLb2	
+                write(iunit)  spack_2d(ijk,i)%DLb3	
+                write(iunit)  spack_2d(ijk,i)%DLb4	
+                write(iunit)  spack_2d(ijk,i)%DLk1  
+                write(iunit)  spack_2d(ijk,i)%DLk2  
+                write(iunit)  spack_2d(ijk,i)%DLk3  
+                write(iunit)  spack_2d(ijk,i)%DLk4 
+            end do
+        end do 
+
+        write(iunit)  last_accepted_dt
+        write(iunit)  get_non_zeros
+        do i=1,na_extra3d
+            write(iunit)  extra3d(1)%d3 
+        end do
+
+      close(iunit)
+
+end subroutine write_input
+
+
+subroutine write_output(time, m1, m2, m3, processor, chem1_g, nspecies)
+    
+        integer, intent(in) :: processor, m1,m2,m3
+        integer, intent(in) :: nspecies !, nob, maxblock_size, na_extra3d
+        !integer, intent(in) :: block_end(nob)
+
+        real, intent(in)    :: time
+
+        !double precision, intent(in) :: last_accepted_dt(:)
+
+        !logical , intent(inout) :: get_non_zeros
+
+        type (chem1_vars), intent(inout) :: chem1_g(nspecies)
+        !type(ext3d), intent(inout) :: extra3d(na_extra3d)
+        !type(spack_type)   , intent(inout) :: spack(1)
+        !type(spack_type_2d), intent(inout) :: spack_2d(:,:)
+
+        integer :: iunit, ispc, i, ijk
+        character(len=24) :: fileName
+
+        write (filename, fmt='("chem_out_",I6.6,"-",I4.4,".bin")') int(time),processor
+        open (newunit=iunit, file=filename, status="replace", form="unformatted", action="write")
+        
+        write(iunit) m1,m2,m3
+        write(iunit) grid_g(1)%glat
+        write(iunit) grid_g(1)%glon
+        
+        do ispc=1,nspecies
+            write(iunit)  chem1_g(ispc)%sc_p
+            write(iunit)  chem1_g(ispc)%sc_t
+            write(iunit)  chem1_g(ispc)%sc_t_dyn
+        end do
+!        write(iunit)  spack(1)%DLdrdc
+!        write(iunit)  spack(1)%sc_p_new
+!        !write(iunit,*)  spack(1)%sc_p_4
+!        write(iunit)  spack(1)%DLr	 
+!        !write(iunit,*)  spack(1)%DLr3	  
+!        write(iunit)  spack(1)%jphoto 
+!        write(iunit)  spack(1)%rk    
+!        write(iunit)  spack(1)%w    
+!        write(iunit)  spack(1)%sc_p
+!        write(iunit)  spack(1)%temp	
+!        write(iunit)  spack(1)%press 
+!        write(iunit)  spack(1)%cosz	  
+!        write(iunit)  spack(1)%att	  
+!        write(iunit)  spack(1)%vapp 
+!        write(iunit)  spack(1)%volmol 
+!        write(iunit)  spack(1)%volmol_i 
+!        write(iunit)  spack(1)%xlw 
+!        write(iunit)  spack(1)%err    
+!        do i = 1, nob
+!          do ijk = 1, block_end(i)
+!            write(iunit)  spack_2d(ijk,inob)%DLmat 
+!            write(iunit)  spack_2d(ijk,inob)%DLb1	
+!            write(iunit)  spack_2d(ijk,inob)%DLb2	
+!            write(iunit)  spack_2d(ijk,inob)%DLb3	
+!            write(iunit)  spack_2d(ijk,inob)%DLb4	
+!            write(iunit)  spack_2d(ijk,inob)%DLk1  
+!            write(iunit)  spack_2d(ijk,inob)%DLk2  
+!            write(iunit)  spack_2d(ijk,inob)%DLk3  
+!            write(iunit)  spack_2d(ijk,inob)%DLk4 
+!          end do
+!        end do 
+!        write(iunit)  last_accepted_dt !(:) !IO !(nob)
+!        write(iunit)  get_non_zeros !IO
+!        do i=1,na_extra3d
+!          write(iunit)  extra3d(i)%d3 !(na_extra3d) ! Output JNO2 !IO
+!        end do
+
+        close(iunit)
+
+end subroutine write_output
 
 !---------------------------------------------------------------------------------------------------
 END MODULE mod_chem_spack_rodas3_dyndt
