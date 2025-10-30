@@ -33,6 +33,9 @@ MODULE mod_chem_spack_rodas3_dyndt
   use mem_grid, only: &
        grid_g
 
+  use chem1_list, only: &
+      spc_name
+
   IMPLICIT NONE
 
   PRIVATE
@@ -935,7 +938,7 @@ subroutine write_input(time, processor, m1, m2, m3, nspecies, nr, nr_photo, maxn
              write(iunit)  chem1_g(ispc)%sc_t
              write(iunit)  chem1_g(ispc)%sc_t_dyn
         end do
-        
+        write(iunit) spc_name
         write(iunit)  spack(1)%DLdrdc
         write(iunit)  spack(1)%sc_p_new
         write(iunit)  spack(1)%DLr	 	 
@@ -1010,6 +1013,8 @@ subroutine write_output(time, m1, m2, m3, processor, chem1_g, nspecies)
             write(iunit)  chem1_g(ispc)%sc_t
             write(iunit)  chem1_g(ispc)%sc_t_dyn
         end do
+
+        write(iunit) spc_name
 !        write(iunit)  spack(1)%DLdrdc
 !        write(iunit)  spack(1)%sc_p_new
 !        !write(iunit,*)  spack(1)%sc_p_4
@@ -1049,7 +1054,164 @@ subroutine write_output(time, m1, m2, m3, processor, chem1_g, nspecies)
 
         close(iunit)
 
+        call create_netcdf_file(time, processor, m1, m2, m3, nspecies, chem1_g)
+
 end subroutine write_output
+
+
+SUBROUTINE create_netcdf_file(time, processor, m1, m2, m3, nspecies, chem1_g)
+  USE netcdf
+  IMPLICIT NONE
+  
+  ! Declaração de variáveis de entrada
+  INTEGER, INTENT(IN) :: m1, m2, m3, nspecies, processor
+  real, intent(in) :: time
+  
+  type (chem1_vars), intent(inout) :: chem1_g(nspecies)
+
+  ! Variáveis locais para NetCDF
+  INTEGER :: ncid, status
+  INTEGER :: dim_m1, dim_m2, dim_m3, dim_nspecies
+  INTEGER :: var_m1, var_m2, var_m3, var_nspecies
+  INTEGER :: var_glat, var_glon
+  INTEGER :: var_scp, var_sct, var_sctdyn
+  INTEGER :: var_spc_name
+  INTEGER :: i, j, k, n
+  character(len=24) :: fileName
+  
+  write (filename, fmt='("chem_out_",I6.6,"-",I4.4,".nc4")') int(time),processor
+  
+  ! Criar o arquivo NetCDF
+  status = NF90_CREATE(filename, NF90_CLOBBER, ncid)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Definir dimensões
+  status = NF90_DEF_DIM(ncid, 'm1', m1, dim_m1)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_DIM(ncid, 'm2', m2, dim_m2)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_DIM(ncid, 'm3', m3, dim_m3)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_DIM(ncid, 'nspecies', nspecies, dim_nspecies)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Definir variáveis de coordenadas
+  status = NF90_DEF_VAR(ncid, 'm1', NF90_INT, dim_m1, var_m1)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_VAR(ncid, 'm2', NF90_INT, dim_m2, var_m2)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_VAR(ncid, 'm3', NF90_INT, dim_m3, var_m3)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_DEF_VAR(ncid, 'nspecies', NF90_INT, dim_nspecies, var_nspecies)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Definir variáveis de latitude e longitude
+  status = NF90_DEF_VAR(ncid, 'latitude', NF90_FLOAT, dim_m2, var_glat)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_glat, 'long_name', 'Latitude')
+  status = NF90_PUT_ATT(ncid, var_glat, 'units', 'degrees_north')
+  
+  status = NF90_DEF_VAR(ncid, 'longitude', NF90_FLOAT, dim_m3, var_glon)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_glon, 'long_name', 'Longitude')
+  status = NF90_PUT_ATT(ncid, var_glon, 'units', 'degrees_east')
+  
+  ! Definir variável para nomes das espécies
+  status = NF90_DEF_VAR(ncid, 'species_names', NF90_CHAR, &
+                       (/NF90_UNLIMITED, dim_nspecies/), var_spc_name)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_spc_name, 'long_name', 'Chemical species names')
+  
+  ! Definir variáveis para concentração, tendência e dinâmica
+  status = NF90_DEF_VAR(ncid, 'concentration', NF90_FLOAT, &
+                       (/dim_m1, dim_m2, dim_m3, dim_nspecies/), var_scp)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_scp, 'long_name', 'Chemical concentration')
+  status = NF90_PUT_ATT(ncid, var_scp, 'units', 'kg/m3')
+  
+  status = NF90_DEF_VAR(ncid, 'tendency', NF90_FLOAT, &
+                       (/dim_m1, dim_m2, dim_m3, dim_nspecies/), var_sct)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_sct, 'long_name', 'Chemical tendency')
+  status = NF90_PUT_ATT(ncid, var_sct, 'units', 'kg/m3/s')
+  
+  status = NF90_DEF_VAR(ncid, 'dynamics', NF90_FLOAT, &
+                       (/dim_m1, dim_m2, dim_m3, dim_nspecies/), var_sctdyn)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  status = NF90_PUT_ATT(ncid, var_sctdyn, 'long_name', 'Chemical dynamics')
+  status = NF90_PUT_ATT(ncid, var_sctdyn, 'units', 'kg/m3/s')
+  
+  ! Finalizar definições
+  status = NF90_ENDDEF(ncid)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Escrever dados de coordenadas
+  status = NF90_PUT_VAR(ncid, var_m1, (/(i, i=1, m1)/))
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_PUT_VAR(ncid, var_m2, (/(i, i=1, m2)/))
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_PUT_VAR(ncid, var_m3, (/(i, i=1, m3)/))
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_PUT_VAR(ncid, var_nspecies, (/(i, i=1, nspecies)/))
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Escrever latitude e longitude
+  status = NF90_PUT_VAR(ncid, var_glat, grid_g(1)%glat)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  status = NF90_PUT_VAR(ncid, var_glon, grid_g(1)%glon)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  ! Escrever nomes das espécies
+  DO n = 1, nspecies
+    status = NF90_PUT_VAR(ncid, var_spc_name, spc_name(n), start=(/1, n/), count=(/LEN_TRIM(spc_name(n)), 1/))
+    IF (status /= NF90_NOERR) CALL handle_error(status)
+  END DO
+  
+  ! Escrever dados das espécies químicas
+  DO n = 1, nspecies
+    ! Concentração
+    status = NF90_PUT_VAR(ncid, var_scp, chem1_g(n)%sc_p, &
+                         start=(/1, 1, 1, n/), count=(/m1, m2, m3, 1/))
+    IF (status /= NF90_NOERR) CALL handle_error(status)
+    
+    ! Tendência
+    status = NF90_PUT_VAR(ncid, var_sct, chem1_g(n)%sc_t, &
+                         start=(/1, 1, 1, n/), count=(/m1, m2, m3, 1/))
+    IF (status /= NF90_NOERR) CALL handle_error(status)
+    
+    ! Dinâmica
+    status = NF90_PUT_VAR(ncid, var_sctdyn, chem1_g(n)%sc_t_dyn, &
+                         start=(/1, 1, 1, n/), count=(/m1, m2, m3, 1/))
+    IF (status /= NF90_NOERR) CALL handle_error(status)
+  END DO
+  
+  ! Fechar arquivo
+  status = NF90_CLOSE(ncid)
+  IF (status /= NF90_NOERR) CALL handle_error(status)
+  
+  
+CONTAINS
+  
+  SUBROUTINE handle_error(status)
+    INTEGER, INTENT(IN) :: status
+    CHARACTER(LEN=100) :: error_msg
+    
+    error_msg = NF90_STRERROR(status)
+    PRINT *, 'Erro NetCDF: ', TRIM(error_msg)
+    STOP
+  END SUBROUTINE handle_error
+
+END SUBROUTINE create_netcdf_file
 
 !---------------------------------------------------------------------------------------------------
 END MODULE mod_chem_spack_rodas3_dyndt
