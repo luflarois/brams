@@ -556,9 +556,11 @@ contains
       !print *,nxGrib,nyGrib
 
       ! Increments lat and lon
-      dy=(lat(1,nyGrib)-lat(1,1))/(nyGrib-1)
-      dx=(lon(nxGrib,1)-lon(1,1))/(nxGrib-1)
-
+      !dy=(lat(1,nyGrib)-lat(1,1))/(nyGrib-1)
+      !dx=(lon(nxGrib,1)-lon(1,1))/(nxGrib-1)
+      
+      dy =abs(lat(1,2)-lat(1,1))
+      dx = lon(2,1)-lon(1,1)
       !print *,dx,dy
 
       do j=1,nyGrib
