@@ -554,10 +554,20 @@ module filesMod
         nyGrib=size(var,2)
     
         !print *,nxGrib,nyGrib
-    
+!        do i=1,size(lon,1)
+!            print *, 'LFR-DBG: i, lon(',i,',1) = ',i,lon(i,1)
+!        end do
+
+!        print *, 'LFR-DBG: lon = ',lon
         ! Increments lat and lon
-        dy=(lat(1,nyGrib)-lat(1,1))/(nyGrib-1)
-        dx=(lon(nxGrib,1)-lon(1,1))/(nxGrib-1)
+!        dy=(lat(1,nyGrib)-lat(1,1))/(nyGrib-1)
+        dy =abs(lat(1,2)-lat(1,1))
+!        print *, 'LFR-DBG: lon(nxGrib,1)=',lon(nxGrib,1),' lon(1,1)=',lon(1,1)
+!        print *, 'LFR-DBG: lon(nxGrib,1)-lon(1,1)=',lon(nxGrib,1)-lon(1,1)
+!        print *, 'LFR-DBG: nxGrib-1=',nxGrib-1
+        dx = lon(2,1)-lon(1,1)
+!        dx=(lon(nxGrib,1)-lon(1,1))/(nxGrib-1)
+!
     
         !print *,dx,dy
     

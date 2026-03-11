@@ -2449,6 +2449,10 @@ subroutine chem_get_press (iunit)
        write(*,fmt='(A)') 'c_noColor'
        if(    glon(1,1)<lonini .or. glon(n1,1)>lonini+(nx-1)*dx &
            .or. glat(1,1)<latini .or. glat(1,n2)>latini+(ny-1)*dy) then
+            print *, 'Lon Ini from Grads input: ',lonini, 'must be less than ',glon(1,1)
+            print *, 'Lon End from Grads input: ',lonini+(nx-1)*dx, 'must be greater than ',glon(n1,1)
+            print *, 'Lat Ini from Grads input: ',latini, 'must be less than ',glat(1,1)
+            print *, 'Lat End from Grads input: ',latini+(ny-1)*dy, 'must be greater than ',glat(1,n2)
            iErrNumber=dumpMessage(c_tty,c_yes,sourceName,procedureName &
                ,c_fatal,'Bad domain specification, see limits above!')
        endif
